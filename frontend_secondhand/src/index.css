@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+
+:root {
+  --color-primary: #13ec5b;
+  --bg-light: #f6f8f6;
+  --bg-dark: #102216;
+  --surface-light: #ffffff;
+  --surface-dark: #1a2e22;
+
+  --text-light: #0d1b12;
+  --border-light: #e7f3eb;
+  --border-dark: #2a4030;
+
+  --muted-green: #4c9a66;
+  --chip-dark: #1f3625;
+}
+
+html,
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+/* Helper classes (optional) */
+.text-primary {
+  color: var(--color-primary);
+}
+.bg-primary {
+  background: var(--color-primary);
+}
+
+/* Light/Dark theme mapping */
+body {
+  background: var(--bg-light);
+  color: var(--text-light);
+}
+.dark body {
+  background: var(--bg-dark);
+  color: #fff;
+}
