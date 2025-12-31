@@ -19,14 +19,17 @@ import ResetPasswordPage from "@/pages/Auth/ResetPassword";
 import SellerDashboardPage from "@/pages/SellerDashboard";
 import AdminDashboardPage from "@/pages/AdminDashboard";
 import SellerProductsPage from "@/pages/SellerDashboard/Products";
+import { authService } from "@/services/authService";
+import type { AuthUser } from "@/types/auth";
+
 type Role = "guest" | "user" | "seller" | "admin";
 
 function useAuth() {
-  // TODO: thay bằng auth thật
-  const isLoggedIn = true;
-  const role: Role = "admin";
+  const user = authService.getCurrentUser() as AuthUser | null;
+  const isLoggedIn = authService.isAuthenticated();
+  const role: Role = user?.role === "admin" ? "admin" : user?.role === "seller" ? "seller" : user ? "user" : "guest";
 
-  return { isLoggedIn, role };
+  return { isLoggedIn, role, user };
 }
 
 function RequireAuth({
@@ -38,7 +41,7 @@ function RequireAuth({
 }) {
   const { isLoggedIn, role } = useAuth();
 
-  if (!isLoggedIn) return <Navigate to="/" replace />;
+  if (!isLoggedIn) return <Navigate to="/auth/signin" replace />;
   if (!allow.includes(role))
     return <div>Bạn không có quyền truy cập</div>;
 
@@ -54,12 +57,40 @@ export default function AppRouter() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/products" element={<ProductPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route
+          path="/cart"
+          element={
+            <RequireAuth allow={["user", "seller", "admin"]}>
+              <CartPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <RequireAuth allow={["user", "seller", "admin"]}>
+              <CheckoutPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth allow={["user", "seller", "admin"]}>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
         <Route path="/order/:id" element={<OrderDetailPage />} />
         <Route path="/seller-profile/:id" element={<SellerProfilePage />} />
-        <Route path="/wishlist" element={<WishlistPage />} />
+        <Route
+          path="/wishlist"
+          element={
+            <RequireAuth allow={["user", "seller", "admin"]}>
+              <WishlistPage />
+            </RequireAuth>
+          }
+        />
         <Route path="/become-seller" element={<BecomeSellerPage />} />
         <Route path="/auth/signin" element={<SignInPage />} />
         <Route path="/auth/signup" element={<SignUpPage />} />
@@ -74,21 +105,31 @@ export default function AppRouter() {
 
         {/* SELLER */}
         <Route
-          path="/seller" element = {<SellerDashboardPage />}
+          path="/seller"
+          element={
+            <RequireAuth allow={["seller", "admin"]}>
+              <SellerDashboardPage />
+            </RequireAuth>
+          }
         />
         <Route
-          path="/seller/products" element = {<SellerProductsPage />}
+          path="/seller/products"
+          element={
+            <RequireAuth allow={["seller", "admin"]}>
+              <SellerProductsPage />
+            </RequireAuth>
+          }
         />
 
 
         {/* ADMIN */}
         <Route
-          path="/admin" element={<AdminDashboardPage />}
-        //   element={
-        //     <RequireAuth allow={["admin"]}>
-        //       <AdminDashboard />
-        //     </RequireAuth>
-        //   }
+          path="/admin"
+          element={
+            <RequireAuth allow={["admin"]}>
+              <AdminDashboardPage />
+            </RequireAuth>
+          }
         />
 
         {/* 404 */}

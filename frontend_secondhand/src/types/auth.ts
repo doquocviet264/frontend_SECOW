@@ -9,14 +9,38 @@ export interface RegisterPayload {
   password: string;
 }
 
+export interface VerifyOTPPayload {
+  email: string;
+  code: string;
+  name: string;
+  password: string;
+}
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  password: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role?: string;
+  isEmailVerified?: boolean;
 }
 
 export interface AuthResponse {
-  token: string;
+  accessToken: string;
   user: AuthUser;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  errors?: Array<{ msg: string; path: string }>;
 }
