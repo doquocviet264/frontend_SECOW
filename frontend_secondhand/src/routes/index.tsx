@@ -18,7 +18,9 @@ import ForgotPasswordPage from "@/pages/Auth/ForgotPassword";
 import ResetPasswordPage from "@/pages/Auth/ResetPassword";
 import SellerDashboardPage from "@/pages/SellerDashboard";
 import AdminDashboardPage from "@/pages/AdminDashboard";
-import SellerProductsPage from "@/pages/SellerDashboard/Products";
+import SellerProductsPage from "@/pages/SellerDashboard/ProductsManagement";
+import CategoryManagementPage from "@/pages/AdminDashboard/CategoryManagement";
+import ProductApprovalPage from "@/pages/AdminDashboard/ProductApproval";
 import { authService } from "@/services/authService";
 import type { AuthUser } from "@/types/auth";
 
@@ -113,6 +115,14 @@ export default function AppRouter() {
           }
         />
         <Route
+          path="/seller/dashboard"
+          element={
+            <RequireAuth allow={["seller", "admin"]}>
+              <SellerDashboardPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/seller/products"
           element={
             <RequireAuth allow={["seller", "admin"]}>
@@ -131,6 +141,23 @@ export default function AppRouter() {
             </RequireAuth>
           }
         />
+        <Route
+          path="/admin/categories"
+          element={
+            <RequireAuth allow={["admin"]}>
+              <CategoryManagementPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/products-approval"
+          element={
+            <RequireAuth allow={["admin"]}>
+              <ProductApprovalPage />
+            </RequireAuth>
+          }
+        />
+
 
         {/* 404 */}
         <Route path="*" element={<div>404 - Không tìm thấy trang</div>} />

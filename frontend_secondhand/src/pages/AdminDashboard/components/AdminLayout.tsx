@@ -5,9 +5,10 @@ const MENU_ITEMS = [
   { path: "/admin", icon: "dashboard", label: "Tổng quan" },
   { path: "/admin/users", icon: "group", label: "Người dùng" },
   { path: "/admin/sellers", icon: "storefront", label: "Người bán" },
-  { path: "/admin/products", icon: "inventory_2", label: "Sản phẩm" }, // Duyệt sp
+  { path: "/admin/products-approval", icon: "inventory_2", label: "Phê duyệt sản phẩm" },
+  { path: "/admin/categories", icon: "category", label: "Danh mục sản phẩm" },
   { path: "/admin/orders", icon: "receipt_long", label: "Đơn hàng" },
-  { path: "/admin/reports", icon: "report", label: "Báo cáo & Khiếu nại" },
+  { path: "/admin/reports", icon: "report", label: "Báo cáo và Khiếu nại" },
   { path: "/admin/settings", icon: "settings", label: "Cài đặt hệ thống" },
 ];
 
@@ -16,9 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
-      {/* --- SIDEBAR --- */}
       <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed h-full z-10 hidden md:flex flex-col">
-        {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 font-black text-xl text-emerald-600">
             <span className="material-symbols-outlined filled">admin_panel_settings</span>
@@ -73,25 +72,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* --- MAIN CONTENT --- */}
       <main className="flex-1 md:ml-64 p-6 overflow-x-hidden">
-        {/* Top Header */}
-        <header className="flex justify-between items-center mb-8">
-           <div>
-             <h1 className="text-2xl font-black text-gray-900 dark:text-white">Dashboard</h1>
-             <p className="text-sm text-gray-500">Chào mừng trở lại, hôm nay hệ thống hoạt động ổn định.</p>
-           </div>
-           
-           <div className="flex items-center gap-4">
-              <div className="hidden sm:flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700">
-                 <span className="material-symbols-outlined text-gray-400">search</span>
-                 <input className="bg-transparent outline-none text-sm w-48" placeholder="Tìm kiếm..." />
-              </div>
-              <button className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:text-emerald-600 relative">
-                 <span className="material-symbols-outlined">notifications</span>
-                 <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-              </button>
-           </div>
-        </header>
-
         {children}
       </main>
     </div>

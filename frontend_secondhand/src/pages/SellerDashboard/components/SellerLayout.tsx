@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
 const MENU_ITEMS = [
-  { path: "/seller", icon: "dashboard", label: "Tổng quan" },
+  { path: "/seller/dashboard", icon: "dashboard", label: "Tổng quan" },
   { path: "/seller/products", icon: "inventory_2", label: "Sản phẩm" },
   { path: "/seller/orders", icon: "shopping_bag", label: "Đơn hàng" },
   { path: "/seller/analytics", icon: "monitoring", label: "Phân tích" },
