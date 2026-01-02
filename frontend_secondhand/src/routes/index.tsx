@@ -45,8 +45,16 @@ function RequireAuth({
   const { isLoggedIn, role } = useAuth();
 
   if (!isLoggedIn) return <Navigate to="/auth/signin" replace />;
-  if (!allow.includes(role))
+  
+  if (!allow.includes(role)) {
+    // Nếu user đã đăng nhập nhưng không phải seller và cố truy cập trang seller
+    // thì điều hướng đến trang đăng ký bán hàng
+    if (allow.includes("seller") && role === "user") {
+      return <Navigate to="/become-seller" replace />;
+    }
+    // Các trường hợp khác hiển thị thông báo lỗi
     return <div>Bạn không có quyền truy cập</div>;
+  }
 
   return <>{children}</>;
 }

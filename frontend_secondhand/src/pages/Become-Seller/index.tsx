@@ -89,6 +89,12 @@ export default function BecomeSellerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [loadingLogoUrl, setLoadingLogoUrl] = useState(false);
+  const [loadingCoverUrl, setLoadingCoverUrl] = useState(false);
+  const [storeStatus, setStoreStatus] = useState<"checking" | "none" | "pending" | "approved">("checking");
+  const [existingStore, setExistingStore] = useState<any>(null);
 
   // File upload refs
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +115,30 @@ export default function BecomeSellerPage() {
           }));
         }
 
+        // Check store status
+        try {
+          const storeResponse = await storeService.getMyStore();
+          if (storeResponse.success && storeResponse.data?.store) {
+            const store = storeResponse.data.store;
+            setExistingStore(store);
+            if (store.isApproved) {
+              setStoreStatus("approved");
+            } else {
+              setStoreStatus("pending");
+            }
+          } else {
+            setStoreStatus("none");
+          }
+        } catch (storeErr: any) {
+          // Nếu không có store hoặc lỗi 404, coi như chưa có store
+          if (storeErr?.response?.status === 404) {
+            setStoreStatus("none");
+          } else {
+            console.error("Error checking store:", storeErr);
+            setStoreStatus("none");
+          }
+        }
+
         // Load provinces
         setLoadingProvinces(true);
         const provincesData = await addressService.getProvinces();
@@ -116,6 +146,7 @@ export default function BecomeSellerPage() {
       } catch (err: any) {
         setError("Không thể tải dữ liệu. Vui lòng thử lại.");
         console.error(err);
+        setStoreStatus("none");
       } finally {
         setLoadingProvinces(false);
       }
@@ -201,6 +232,97 @@ export default function BecomeSellerPage() {
     reader.readAsDataURL(file);
   };
 
+  // Handle paste image
+  const handlePasteImage = async (type: "logo" | "coverImage", e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const items = e.clipboardData?.items;
+    
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      if (item.type.indexOf("image") !== -1) {
+        const blob = item.getAsFile();
+        if (!blob) return;
+
+        // Convert blob to File object
+        const file = new File([blob], `pasted-image-${Date.now()}.png`, {
+          type: blob.type || "image/png",
+        });
+
+        handleFileUpload(type, file);
+        break;
+      }
+    }
+  };
+
+  // Handle load image from URL
+  const handleLoadImageFromUrl = async (type: "logo" | "coverImage", url: string) => {
+    if (!url.trim()) {
+      setError("Vui lòng nhập URL ảnh");
+      return;
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      setError("URL không hợp lệ");
+      return;
+    }
+
+    if (type === "logo") {
+      setLoadingLogoUrl(true);
+    } else {
+      setLoadingCoverUrl(true);
+    }
+
+    try {
+      setError(null);
+      
+      // Fetch image from URL
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Không thể tải ảnh từ URL");
+      }
+
+      const blob = await response.blob();
+      
+      // Validate file type
+      if (!blob.type.startsWith("image/")) {
+        throw new Error("URL không phải là ảnh hợp lệ");
+      }
+
+      // Validate file size (max 5MB)
+      if (blob.size > 5 * 1024 * 1024) {
+        throw new Error("Kích thước ảnh không được vượt quá 5MB");
+      }
+
+      // Convert blob to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setFormData((prev) => ({ ...prev, [type]: base64String }));
+        if (type === "logo") {
+          setLogoUrl("");
+        } else {
+          setCoverImageUrl("");
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch (err: any) {
+      setError(err?.message || "Không thể tải ảnh từ URL. Vui lòng kiểm tra lại URL.");
+      console.error("Error loading image from URL:", err);
+    } finally {
+      if (type === "logo") {
+        setLoadingLogoUrl(false);
+      } else {
+        setLoadingCoverUrl(false);
+      }
+    }
+  };
+
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,6 +399,10 @@ export default function BecomeSellerPage() {
 
       if (response.success) {
         setSuccess(true);
+        setStoreStatus("pending");
+        if (response.data?.store) {
+          setExistingStore(response.data.store);
+        }
         // Không redirect vì cần chờ admin duyệt
         // setTimeout(() => {
         //   navigate("/profile");
@@ -354,7 +480,98 @@ export default function BecomeSellerPage() {
           <div className="lg:col-span-8">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 sm:p-8">
               
-              {success ? (
+              {storeStatus === "checking" ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-4">
+                    <span className="material-symbols-outlined text-gray-400 text-4xl animate-spin">sync</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400">Đang kiểm tra trạng thái shop...</p>
+                </div>
+              ) : storeStatus === "pending" ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+                    <span className="material-symbols-outlined text-amber-500 text-4xl">pending</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    Shop đang được phê duyệt
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                    Đơn đăng ký shop của bạn đang được admin xem xét và phê duyệt. 
+                    Vui lòng chờ trong giây lát. Bạn sẽ nhận được thông báo khi shop được phê duyệt.
+                  </p>
+
+                  {existingStore && (
+                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 mb-6 max-w-md mx-auto text-left">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-4">Thông tin shop đã đăng ký</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Tên shop:</span>
+                          <p className="text-sm text-gray-900 dark:text-white font-medium">{existingStore.storeName}</p>
+                        </div>
+                        {existingStore.description && (
+                          <div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Mô tả:</span>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{existingStore.description}</p>
+                          </div>
+                        )}
+                        {existingStore.address && (
+                          <div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Địa chỉ:</span>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{existingStore.address}</p>
+                          </div>
+                        )}
+                        {existingStore.phone && (
+                          <div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Số điện thoại:</span>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{existingStore.phone}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 max-w-md mx-auto">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl">info</span>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">
+                          Lưu ý
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400">
+                          Bạn chỉ có thể đăng sản phẩm sau khi shop được phê duyệt thành công.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => navigate("/profile")}
+                      className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/30 transition-all"
+                    >
+                      Về trang cá nhân
+                    </button>
+                  </div>
+                </div>
+              ) : storeStatus === "approved" ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
+                    <span className="material-symbols-outlined text-emerald-500 text-4xl">check_circle</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    Shop của bạn đã được phê duyệt!
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    Bạn có thể bắt đầu đăng sản phẩm ngay bây giờ.
+                  </p>
+                  <button
+                    onClick={() => navigate("/seller/products")}
+                    className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/30 transition-all"
+                  >
+                    Đến trang quản lý sản phẩm
+                  </button>
+                </div>
+              ) : storeStatus === "none" && success ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
                     <span className="material-symbols-outlined text-emerald-500 text-4xl">check_circle</span>
@@ -400,51 +617,126 @@ export default function BecomeSellerPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-5">
                       <FormField label="Ảnh đại diện shop">
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="file"
-                            ref={logoInputRef}
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handleFileUpload("logo", e.target.files?.[0] || null)}
-                          />
-                          <div
-                            onClick={() => logoInputRef.current?.click()}
-                            className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-gray-400 overflow-hidden"
-                          >
-                            {formData.logo ? (
-                              <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="material-symbols-outlined text-2xl">add_a_photo</span>
-                            )}
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4">
+                            <input
+                              type="file"
+                              ref={logoInputRef}
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload("logo", e.target.files?.[0] || null)}
+                            />
+                            <div
+                              onClick={() => logoInputRef.current?.click()}
+                              onPaste={(e) => handlePasteImage("logo", e)}
+                              tabIndex={0}
+                              className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-gray-400 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              {formData.logo ? (
+                                <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="material-symbols-outlined text-2xl">add_a_photo</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              <div>Định dạng: .JPEG, .PNG</div>
+                              <div>Kích thước tối ưu: 300x300px</div>
+                              <div className="text-emerald-600 dark:text-emerald-400 mt-1">Hoặc dán ảnh (Ctrl+V)</div>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-400">
-                            <div>Định dạng: .JPEG, .PNG</div>
-                            <div>Kích thước tối ưu: 300x300px</div>
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              value={logoUrl}
+                              onChange={(e) => setLogoUrl(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleLoadImageFromUrl("logo", logoUrl);
+                                }
+                              }}
+                              placeholder="Hoặc dán URL ảnh..."
+                              className="flex-1 h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleLoadImageFromUrl("logo", logoUrl)}
+                              disabled={loadingLogoUrl || !logoUrl.trim()}
+                              className="px-4 h-9 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                            >
+                              {loadingLogoUrl ? (
+                                <>
+                                  <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                                  <span>Đang tải...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-sm">download</span>
+                                  <span>Tải</span>
+                                </>
+                              )}
+                            </button>
                           </div>
                         </div>
                       </FormField>
 
                       <FormField label="Ảnh bìa shop (Tùy chọn)">
-                        <input
-                          type="file"
-                          ref={coverInputRef}
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload("coverImage", e.target.files?.[0] || null)}
-                        />
-                        <div
-                          onClick={() => coverInputRef.current?.click()}
-                          className="w-full h-24 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-gray-400 gap-1 overflow-hidden"
-                        >
-                          {formData.coverImage ? (
-                            <img src={formData.coverImage} alt="Cover" className="w-full h-full object-cover" />
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-2xl">image</span>
-                              <span className="text-xs">Tải ảnh bìa</span>
-                            </>
-                          )}
+                        <div className="space-y-3">
+                          <input
+                            type="file"
+                            ref={coverInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleFileUpload("coverImage", e.target.files?.[0] || null)}
+                          />
+                          <div
+                            onClick={() => coverInputRef.current?.click()}
+                            onPaste={(e) => handlePasteImage("coverImage", e)}
+                            tabIndex={0}
+                            className="w-full h-24 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-gray-400 gap-1 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {formData.coverImage ? (
+                              <img src={formData.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-2xl">image</span>
+                                <span className="text-xs">Tải ảnh bìa hoặc dán ảnh (Ctrl+V)</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              value={coverImageUrl}
+                              onChange={(e) => setCoverImageUrl(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleLoadImageFromUrl("coverImage", coverImageUrl);
+                                }
+                              }}
+                              placeholder="Hoặc dán URL ảnh..."
+                              className="flex-1 h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleLoadImageFromUrl("coverImage", coverImageUrl)}
+                              disabled={loadingCoverUrl || !coverImageUrl.trim()}
+                              className="px-4 h-9 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                            >
+                              {loadingCoverUrl ? (
+                                <>
+                                  <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                                  <span>Đang tải...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-sm">download</span>
+                                  <span>Tải</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </FormField>
                     </div>
