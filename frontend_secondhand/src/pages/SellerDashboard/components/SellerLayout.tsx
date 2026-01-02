@@ -100,7 +100,14 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         </nav>
 
         {/* Footer Sidebar */}
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+           <Link
+              to="/"
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+           >
+              <span className="material-symbols-outlined">home</span>
+              Quay về trang chủ
+           </Link>
            <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
               <span className="material-symbols-outlined">logout</span>
               Đăng xuất
@@ -109,9 +116,24 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       </aside>
 
       {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 md:ml-64 p-6 overflow-x-hidden">
+      <main className="flex-1 md:ml-64 overflow-x-hidden">
+        {/* Header Bar */}
+        <div className="sticky top-0 z-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              to="/"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">home</span>
+              <span className="hidden sm:inline">Quay về trang chủ</span>
+            </Link>
+          </div>
+        </div>
 
-        {children}
+        {/* Content */}
+        <div className="p-6">
+          {children}
+        </div>
       </main>
     </div>
   );
