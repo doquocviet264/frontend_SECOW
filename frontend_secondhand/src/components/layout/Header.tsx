@@ -1,7 +1,9 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { authService } from "@/services/authService";
+import { storeService } from "@/services/storeService";
 import type { AuthUser } from "@/types/auth";
+import StorePendingModal from "@/components/StorePendingModal";
 
 const NAV = [
   { label: "Trang chủ", href: "/" },
@@ -41,6 +43,8 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showStorePendingModal, setShowStorePendingModal] = useState(false);
+  const [isCheckingStore, setIsCheckingStore] = useState(false);
   const isAuthenticated = authService.isAuthenticated();
   const user = authService.getCurrentUser() as AuthUser | null;
 
@@ -49,13 +53,40 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
     setShowUserMenu(false);
   }, [location.pathname]);
 
-  const handleSellClick = () => {
+  const handleSellClick = async () => {
     if (!isAuthenticated) {
       navigate("/auth/signin");
       return;
     }
-    if (user?.role === "seller" || user?.role === "admin") {
+    
+    if (user?.role === "admin") {
       navigate("/seller/products");
+      return;
+    }
+
+    if (user?.role === "seller") {
+      // Kiểm tra trạng thái store trước khi cho phép đăng sản phẩm
+      setIsCheckingStore(true);
+      try {
+        const storeResponse = await storeService.getMyStore();
+        if (storeResponse.success && storeResponse.data?.store) {
+          const store = storeResponse.data.store;
+          if (!store.isApproved) {
+            // Store đang chờ duyệt
+            setShowStorePendingModal(true);
+            setIsCheckingStore(false);
+            return;
+          }
+        }
+        // Store đã được duyệt hoặc không có store
+        navigate("/seller/products");
+      } catch (error) {
+        console.error("Error checking store status:", error);
+        // Nếu có lỗi, vẫn cho phép vào trang (có thể là chưa có store)
+        navigate("/seller/products");
+      } finally {
+        setIsCheckingStore(false);
+      }
     } else {
       navigate("/become-seller");
     }
@@ -120,9 +151,14 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
         <div className="flex gap-2 lg:gap-3 relative">
           <button
             onClick={handleSellClick}
-            className="flex h-10 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-primary)] px-4 text-[var(--text-light)] text-sm font-bold shadow-md hover:brightness-105 transition-all"
+            disabled={isCheckingStore}
+            className="flex h-10 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-primary)] px-4 text-[var(--text-light)] text-sm font-bold shadow-md hover:brightness-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="truncate">Đăng bán ngay</span>
+            {isCheckingStore ? (
+              <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+            ) : (
+              <span className="truncate">Đăng bán ngay</span>
+            )}
           </button>
 
           {isAuthenticated && (
@@ -208,6 +244,12 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
           onClick={() => setShowUserMenu(false)}
         />
       )}
+
+      {/* Modal thông báo store đang chờ duyệt */}
+      <StorePendingModal
+        isOpen={showStorePendingModal}
+        onClose={() => setShowStorePendingModal(false)}
+      />
     </header>
   );
 }
