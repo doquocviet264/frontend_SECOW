@@ -7,6 +7,8 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
+  phone: string;
+  dateOfBirth: string;
 }
 
 export interface VerifyOTPPayload {
@@ -14,6 +16,8 @@ export interface VerifyOTPPayload {
   code: string;
   name: string;
   password: string;
+  phone: string;
+  dateOfBirth: string;
 }
 
 export interface ForgotPasswordPayload {

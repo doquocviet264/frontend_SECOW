@@ -12,6 +12,8 @@ export default function SignUpPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    phone: "",
+    dateOfBirth: "",
   });
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -25,6 +27,38 @@ export default function SignUpPage() {
     setSuccess("");
 
     // Validation
+    if (!formData.name.trim()) {
+      setError("Tên là bắt buộc");
+      return;
+    }
+
+    if (!formData.phone.trim()) {
+      setError("Số điện thoại là bắt buộc");
+      return;
+    }
+
+    if (!/^[0-9]{10,11}$/.test(formData.phone)) {
+      setError("Số điện thoại phải có 10-11 chữ số");
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      setError("Ngày sinh là bắt buộc");
+      return;
+    }
+
+    // Validate age (must be at least 16 years old)
+    const birthDate = new Date(formData.dateOfBirth);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age;
+    
+    if (actualAge < 16) {
+      setError("Bạn phải đủ 16 tuổi trở lên để đăng ký");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Mật khẩu không khớp");
       return;
@@ -47,6 +81,8 @@ export default function SignUpPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
       });
 
       if (response.success) {
@@ -117,6 +153,8 @@ export default function SignUpPage() {
         code,
         name: formData.name,
         password: formData.password,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
       };
 
       const response = await authService.verifyOTP(payload);
@@ -327,6 +365,58 @@ export default function SignUpPage() {
               className="w-full h-11 pl-10 pr-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+            Số điện thoại <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">
+              phone
+            </span>
+            <input
+              type="tel"
+              placeholder="0901234567"
+              required
+              value={formData.phone}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, ""); // Chỉ cho phép số
+                if (value.length <= 11) {
+                  setFormData({ ...formData, phone: value });
+                }
+              }}
+              maxLength={11}
+              className="w-full h-11 pl-10 pr-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
+            />
+          </div>
+          <p className="text-[10px] text-gray-400 ml-1 mt-1">
+            10-11 chữ số
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
+            Ngày sinh <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">
+              calendar_today
+            </span>
+            <input
+              type="date"
+              required
+              value={formData.dateOfBirth}
+              onChange={(e) =>
+                setFormData({ ...formData, dateOfBirth: e.target.value })
+              }
+              max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split("T")[0]}
+              className="w-full h-11 pl-10 pr-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
+            />
+          </div>
+          <p className="text-[10px] text-gray-400 ml-1 mt-1">
+            Bạn phải đủ 16 tuổi trở lên
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

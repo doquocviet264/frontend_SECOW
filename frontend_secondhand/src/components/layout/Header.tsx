@@ -1,12 +1,20 @@
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { authService } from "@/services/authService";
+import type { AuthUser } from "@/types/auth";
+
 const NAV = [
-  { label: "Trang chủ", href: "#" },
+  { label: "Trang chủ", href: "/" },
   { label: "Sản phẩm", href: "/products" },
-  { label: "Cộng đồng", href: "#" },
+  { label: "Cộng đồng", href: "/about" },
 ];
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2 lg:gap-4 text-[var(--text-light)] dark:text-white cursor-pointer">
+    <Link
+      to="/"
+      className="flex items-center gap-2 lg:gap-4 text-[var(--text-light)] dark:text-white cursor-pointer"
+    >
       <div className="size-8 text-[var(--color-primary)]">
         <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -20,7 +28,7 @@ function Logo() {
       <h2 className="text-lg lg:text-xl font-black leading-tight tracking-tight">
         Chợ Đồ Cũ
       </h2>
-    </div>
+    </Link>
   );
 }
 
@@ -30,6 +38,50 @@ type HeaderProps = {
 };
 
 export default function Header({ onSearchChange, searchValue = "" }: HeaderProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const isAuthenticated = authService.isAuthenticated();
+  const user = authService.getCurrentUser() as AuthUser | null;
+
+  // Đóng menu khi route thay đổi
+  useEffect(() => {
+    setShowUserMenu(false);
+  }, [location.pathname]);
+
+  const handleSellClick = () => {
+    if (!isAuthenticated) {
+      navigate("/auth/signin");
+      return;
+    }
+    if (user?.role === "seller" || user?.role === "admin") {
+      navigate("/seller/products");
+    } else {
+      navigate("/become-seller");
+    }
+  };
+
+  const handleCartClick = () => {
+    if (!isAuthenticated) {
+      navigate("/auth/signin");
+      return;
+    }
+    navigate("/cart");
+  };
+
+  const handleAccountClick = () => {
+    if (!isAuthenticated) {
+      navigate("/auth/signin");
+      return;
+    }
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setShowUserMenu(false);
+  };
+
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid bg-white dark:bg-[var(--surface-dark)] px-4 lg:px-10 py-3 shadow-sm border-b-[var(--border-light)] dark:border-b-[var(--border-dark)]">
       <div className="flex items-center gap-4 lg:gap-8 flex-1">
@@ -55,34 +107,107 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
       <div className="flex items-center justify-end gap-4 lg:gap-8">
         <nav className="hidden lg:flex items-center gap-6">
           {NAV.map((n) => (
-            <a
+            <Link
               key={n.label}
+              to={n.href}
               className="text-[var(--text-light)] dark:text-white text-sm font-medium hover:text-[var(--color-primary)] transition-colors"
-              href={n.href}
             >
               {n.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
-        <div className="flex gap-2 lg:gap-3">
-          <button className="flex h-10 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-primary)] px-4 text-[var(--text-light)] text-sm font-bold shadow-md hover:brightness-105 transition-all">
+        <div className="flex gap-2 lg:gap-3 relative">
+          <button
+            onClick={handleSellClick}
+            className="flex h-10 items-center justify-center overflow-hidden rounded-lg bg-[var(--color-primary)] px-4 text-[var(--text-light)] text-sm font-bold shadow-md hover:brightness-105 transition-all"
+          >
             <span className="truncate">Đăng bán ngay</span>
           </button>
 
-          <button className="hidden sm:flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors">
-            <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
-          </button>
+          {isAuthenticated && (
+            <>
+              <button
+                onClick={handleCartClick}
+                className="hidden sm:flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors relative"
+                title="Giỏ hàng"
+              >
+                <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
+              </button>
 
-          <button className="hidden sm:flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors">
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
-          </button>
+              <button
+                className="hidden sm:flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors"
+                title="Thông báo"
+              >
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+              </button>
+            </>
+          )}
 
-          <button className="flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors">
-            <span className="material-symbols-outlined text-[20px]">account_circle</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (isAuthenticated) {
+                  setShowUserMenu(!showUserMenu);
+                } else {
+                  handleAccountClick();
+                }
+              }}
+              className="flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors"
+              title={isAuthenticated ? user?.name || "Tài khoản" : "Đăng nhập"}
+            >
+              <span className="material-symbols-outlined text-[20px]">account_circle</span>
+            </button>
+
+            {isAuthenticated && showUserMenu && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[var(--surface-dark)] rounded-lg shadow-lg border border-[var(--border-light)] dark:border-[var(--border-dark)] overflow-hidden z-50">
+                <div className="px-4 py-3 border-b border-[var(--border-light)] dark:border-[var(--border-dark)]">
+                  <p className="text-sm font-medium text-[var(--text-light)] dark:text-white">
+                    {user?.name || "Người dùng"}
+                  </p>
+                  <p className="text-xs text-[var(--muted-green)]">{user?.email}</p>
+                </div>
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      navigate("/profile");
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-[var(--text-light)] dark:text-white hover:bg-[var(--bg-light)] dark:hover:bg-[var(--bg-dark)] transition-colors"
+                  >
+                    Trang cá nhân
+                  </button>
+                  {user?.role === "seller" || user?.role === "admin" ? (
+                    <button
+                      onClick={() => {
+                        navigate(user?.role === "admin" ? "/admin" : "/seller");
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-[var(--text-light)] dark:text-white hover:bg-[var(--bg-light)] dark:hover:bg-[var(--bg-dark)] transition-colors"
+                    >
+                      {user?.role === "admin" ? "Bảng điều khiển Admin" : "Bảng điều khiển"}
+                    </button>
+                  ) : null}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-[var(--bg-light)] dark:hover:bg-[var(--bg-dark)] transition-colors"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Overlay để đóng menu khi click bên ngoài */}
+      {showUserMenu && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowUserMenu(false)}
+        />
+      )}
     </header>
   );
 }

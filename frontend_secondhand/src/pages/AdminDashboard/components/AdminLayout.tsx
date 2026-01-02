@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 const MENU_ITEMS = [
   { path: "/admin", icon: "dashboard", label: "Tổng quan" },
   { path: "/admin/users", icon: "group", label: "Người dùng" },
-  { path: "/admin/sellers", icon: "storefront", label: "Người bán" },
+  { path: "/admin/stores-approval", icon: "storefront", label: "Phê duyệt cửa hàng" },
   { path: "/admin/products-approval", icon: "inventory_2", label: "Phê duyệt sản phẩm" },
   { path: "/admin/categories", icon: "category", label: "Danh mục sản phẩm" },
   { path: "/admin/orders", icon: "receipt_long", label: "Đơn hàng" },
