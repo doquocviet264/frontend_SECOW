@@ -21,6 +21,7 @@ import AdminDashboardPage from "@/pages/AdminDashboard";
 import SellerProductsPage from "@/pages/SellerDashboard/ProductsManagement";
 import CategoryManagementPage from "@/pages/AdminDashboard/CategoryManagement";
 import ProductApprovalPage from "@/pages/AdminDashboard/ProductApproval";
+import StoreApprovalPage from "@/pages/AdminDashboard/StoreApproval";
 import { authService } from "@/services/authService";
 import type { AuthUser } from "@/types/auth";
 
@@ -154,6 +155,14 @@ export default function AppRouter() {
           element={
             <RequireAuth allow={["admin"]}>
               <ProductApprovalPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/stores-approval"
+          element={
+            <RequireAuth allow={["admin"]}>
+              <StoreApprovalPage />
             </RequireAuth>
           }
         />
