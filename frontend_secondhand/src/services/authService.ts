@@ -23,6 +23,9 @@ export const authService = {
     if (res.data?.data?.accessToken) {
       localStorage.setItem("token", res.data.data.accessToken);
       localStorage.setItem("user", JSON.stringify(res.data.data.user));
+      if (res.data.data.refreshToken) {
+        localStorage.setItem("refreshToken", res.data.data.refreshToken);
+      }
     }
 
     return res.data;
@@ -39,6 +42,9 @@ export const authService = {
     if (res.data?.data?.accessToken) {
       localStorage.setItem("token", res.data.data.accessToken);
       localStorage.setItem("user", JSON.stringify(res.data.data.user));
+      if (res.data.data.refreshToken) {
+        localStorage.setItem("refreshToken", res.data.data.refreshToken);
+      }
     }
 
     return res.data;
@@ -59,8 +65,32 @@ export const authService = {
     return res.data;
   },
 
+  async refreshToken(): Promise<string | null> {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      return null;
+    }
+
+    try {
+      const res = await axios.post(`${AUTH_PREFIX}/refresh-token`, {
+        refreshToken,
+      });
+
+      if (res.data?.data?.accessToken) {
+        localStorage.setItem("token", res.data.data.accessToken);
+        return res.data.data.accessToken;
+      }
+      return null;
+    } catch (error) {
+      // Refresh token cũng hết hạn hoặc không hợp lệ
+      this.logout();
+      return null;
+    }
+  },
+
   logout() {
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     window.location.href = "/auth/signin";
   },
@@ -72,6 +102,10 @@ export const authService = {
 
   getToken() {
     return localStorage.getItem("token");
+  },
+
+  getRefreshToken() {
+    return localStorage.getItem("refreshToken");
   },
 
   isAuthenticated() {
