@@ -15,6 +15,13 @@ export type Address = {
   receiver: string;
   phone: string;
   addressLine: string;
+  street?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  provinceCode?: string;
+  districtCode?: string;
+  wardCode?: string;
   isDefault?: boolean;
 };
 

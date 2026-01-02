@@ -79,6 +79,10 @@ export default function ProfilePage() {
                   phone: apiUser.phone || "",
                   isDefault: true,
                   addressLine: addressParts.join(", "),
+                  street: apiUser.address.street,
+                  city: apiUser.address.city,
+                  district: apiUser.address.district,
+                  ward: apiUser.address.ward,
                 },
               ]);
             }
@@ -232,7 +236,48 @@ export default function ProfilePage() {
             ) : null}
 
             {active === "personal" ? <PersonalInfoTab user={user} /> : null}
-            {active === "address" ? <AddressesTab addresses={addresses} /> : null}
+            {active === "address" ? (
+              <AddressesTab
+                addresses={addresses}
+                onAddressAdded={() => {
+                  // Refresh user data to get updated address
+                  const refreshData = async () => {
+                    try {
+                      const userResponse = await authService.getMe();
+                      if (userResponse.success && userResponse.data?.user) {
+                        const apiUser = userResponse.data.user as any;
+                        if (apiUser.address) {
+                          const addressParts = [];
+                          if (apiUser.address.street) addressParts.push(apiUser.address.street);
+                          if (apiUser.address.ward) addressParts.push(apiUser.address.ward);
+                          if (apiUser.address.district) addressParts.push(apiUser.address.district);
+                          if (apiUser.address.city) addressParts.push(apiUser.address.city);
+
+                          if (addressParts.length > 0) {
+                            setAddresses([
+                              {
+                                id: "main",
+                                receiver: apiUser.name || "",
+                                phone: apiUser.phone || "",
+                                isDefault: true,
+                                addressLine: addressParts.join(", "),
+                                street: apiUser.address.street,
+                                city: apiUser.address.city,
+                                district: apiUser.address.district,
+                                ward: apiUser.address.ward,
+                              },
+                            ]);
+                          }
+                        }
+                      }
+                    } catch (err) {
+                      console.error("Error refreshing address:", err);
+                    }
+                  };
+                  refreshData();
+                }}
+              />
+            ) : null}
             {active === "orders" ? <OrdersTab orders={orders} /> : null}
           </div>
         </div>

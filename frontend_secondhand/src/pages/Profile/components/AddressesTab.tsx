@@ -1,10 +1,39 @@
+import { useState } from "react";
 import type { Address } from "../types";
+import AddressForm from "./AddressForm";
 
 type Props = {
   addresses: Address[];
+  onAddressAdded?: () => void;
 };
 
-export default function AddressesTab({ addresses }: Props) {
+export default function AddressesTab({ addresses, onAddressAdded }: Props) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+
+  const handleAddClick = () => {
+    setEditingAddress(null);
+    setShowForm(true);
+  };
+
+  const handleEditClick = (address: Address) => {
+    setEditingAddress(address);
+    setShowForm(true);
+  };
+
+  const handleFormSuccess = () => {
+    setShowForm(false);
+    setEditingAddress(null);
+    if (onAddressAdded) {
+      onAddressAdded();
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingAddress(null);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] dark:shadow-none p-6 sm:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -14,11 +43,38 @@ export default function AddressesTab({ addresses }: Props) {
             Quản lý địa chỉ nhận hàng của bạn
           </p>
         </div>
-        <button className="flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 active:scale-95 transition-all duration-200">
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Thêm địa chỉ mới
-        </button>
+        {!showForm && (
+          <button
+            onClick={handleAddClick}
+            className="flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 active:scale-95 transition-all duration-200"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            Thêm địa chỉ mới
+          </button>
+        )}
       </div>
+
+      {showForm ? (
+        <div className="mb-6">
+          <AddressForm
+            initialData={
+              editingAddress
+                ? {
+                    receiver: editingAddress.receiver,
+                    phone: editingAddress.phone,
+                    street: editingAddress.street,
+                    provinceCode: editingAddress.provinceCode,
+                    districtCode: editingAddress.districtCode,
+                    wardCode: editingAddress.wardCode,
+                    label: editingAddress.label,
+                  }
+                : undefined
+            }
+            onSuccess={handleFormSuccess}
+            onCancel={handleFormCancel}
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4">
         {addresses.map((a) => (
@@ -62,12 +118,13 @@ export default function AddressesTab({ addresses }: Props) {
               </div>
 
               <div className="flex items-center gap-2 sm:self-start mt-2 sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <button 
+                <button
+                  onClick={() => handleEditClick(a)}
                   className="h-9 px-4 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   Sửa
                 </button>
-                <button 
+                <button
                   className="h-9 px-4 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   Xoá
