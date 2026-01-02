@@ -10,14 +10,21 @@ export default function ResetPasswordPage() {
     password: "",
     confirmPassword: "",
   });
+  const [email, setEmail] = useState<string>("");
+  const [code, setCode] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    if (!token) {
-      setError("Token không hợp lệ. Vui lòng yêu cầu đặt lại mật khẩu mới.");
+    const emailParam = searchParams.get("email");
+    const codeParam = searchParams.get("code");
+    
+    if (!emailParam || !codeParam) {
+      setError("Thông tin không hợp lệ. Vui lòng yêu cầu đặt lại mật khẩu mới.");
+    } else {
+      setEmail(emailParam);
+      setCode(codeParam);
     }
   }, [searchParams]);
 
@@ -26,9 +33,8 @@ export default function ResetPasswordPage() {
     setError("");
     setSuccess("");
 
-    const token = searchParams.get("token");
-    if (!token) {
-      setError("Token không hợp lệ");
+    if (!email || !code) {
+      setError("Thông tin không hợp lệ");
       return;
     }
 
@@ -52,7 +58,8 @@ export default function ResetPasswordPage() {
 
     try {
       const response = await authService.resetPassword({
-        token,
+        email,
+        code,
         password: formData.password,
       });
 
@@ -68,7 +75,7 @@ export default function ResetPasswordPage() {
       const errorMessage =
         err.response?.data?.message ||
         err.response?.data?.errors?.[0]?.msg ||
-        "Đặt lại mật khẩu thất bại. Token có thể đã hết hạn.";
+        "Đặt lại mật khẩu thất bại. Mã OTP có thể đã hết hạn.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -143,7 +150,7 @@ export default function ResetPasswordPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !email || !code}
           className="w-full h-12 rounded-xl bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 font-bold shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
         >
           {loading ? (
@@ -160,6 +167,16 @@ export default function ResetPasswordPage() {
             </>
           )}
         </button>
+
+        <div className="text-center">
+          <a
+            href="/auth/forgot-password"
+            className="inline-flex items-center gap-1 text-sm font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Quay lại quên mật khẩu
+          </a>
+        </div>
       </form>
     </AuthLayout>
   );

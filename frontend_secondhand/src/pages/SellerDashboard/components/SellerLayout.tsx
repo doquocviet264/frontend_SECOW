@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { storeService } from "@/services/storeService";
+import type { Store } from "@/services/storeService";
 
 const MENU_ITEMS = [
   { path: "/seller/dashboard", icon: "dashboard", label: "Tổng quan" },
@@ -13,6 +15,25 @@ const MENU_ITEMS = [
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const [store, setStore] = useState<Store | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStore = async () => {
+      try {
+        const response = await storeService.getMyStore();
+        if (response.success && response.data?.store) {
+          setStore(response.data.store);
+        }
+      } catch (error) {
+        console.error("Error fetching store:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStore();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
@@ -30,11 +51,27 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         <div className="p-4 border-b border-gray-100 dark:border-gray-700">
            <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-xl">
               <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                 <img src="https://i.pravatar.cc/150?u=seller" alt="Seller" />
+                 {loading ? (
+                   <div className="w-full h-full bg-gray-300 animate-pulse" />
+                 ) : (
+                   <img 
+                     src={store?.logo || "https://via.placeholder.com/150"} 
+                     alt={store?.storeName || "Shop"} 
+                     className="w-full h-full object-cover"
+                   />
+                 )}
               </div>
               <div className="min-w-0">
-                 <div className="font-bold text-sm text-gray-900 dark:text-white truncate">Vintage Store HN</div>
-                 <div className="text-xs text-emerald-600 font-medium">Đang hoạt động</div>
+                 <div className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                   {loading ? (
+                     <div className="h-4 w-24 bg-gray-300 rounded animate-pulse" />
+                   ) : (
+                     store?.storeName || "Chưa có shop"
+                   )}
+                 </div>
+                 <div className="text-xs text-emerald-600 font-medium">
+                   {store?.isApproved ? "Đang hoạt động" : "Chờ duyệt"}
+                 </div>
               </div>
            </div>
         </div>

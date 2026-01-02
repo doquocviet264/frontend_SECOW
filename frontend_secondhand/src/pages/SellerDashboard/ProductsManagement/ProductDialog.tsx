@@ -53,9 +53,24 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const previewImagesRef = useRef<string[]>([]);
+  const videoPreviewRef = useRef<string | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    previewImagesRef.current = previewImages;
+  }, [previewImages]);
+
+  useEffect(() => {
+    videoPreviewRef.current = videoPreview;
+  }, [videoPreview]);
 
   useEffect(() => {
     if (isOpen) {
+      // Cleanup previous previews before creating new ones
+      const previousPreviews = previewImagesRef.current;
+      const previousVideo = videoPreviewRef.current;
+
       if (initialData) {
         setFormData({
           ...defaultForm,
@@ -88,13 +103,37 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
         setPreviewImages([]);
         setVideoPreview(null);
       }
+
+      // Cleanup previous previews
+      return () => {
+        previousPreviews.forEach((preview) => {
+          if (preview && !preview.startsWith('http')) {
+            URL.revokeObjectURL(preview);
+          }
+        });
+        if (previousVideo && !previousVideo.startsWith('http')) {
+          URL.revokeObjectURL(previousVideo);
+        }
+      };
     }
-    return () => {
-      if (videoPreview && !videoPreview.startsWith('http')) {
-        URL.revokeObjectURL(videoPreview);
-      }
-    };
   }, [isOpen, initialData]);
+
+  // Cleanup when dialog closes or component unmounts
+  useEffect(() => {
+    if (!isOpen) {
+      return () => {
+        previewImagesRef.current.forEach((preview) => {
+          if (preview && !preview.startsWith('http')) {
+            URL.revokeObjectURL(preview);
+          }
+        });
+        if (videoPreviewRef.current && !videoPreviewRef.current.startsWith('http')) {
+          URL.revokeObjectURL(videoPreviewRef.current);
+        }
+      };
+    }
+  }, [isOpen]);
+
 
   const handleChange = (field: keyof ProductFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -145,6 +184,12 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
   };
 
   const removeImage = (index: number) => {
+    // Revoke object URL if it's not a regular URL
+    const previewToRemove = previewImages[index];
+    if (previewToRemove && !previewToRemove.startsWith('http')) {
+      URL.revokeObjectURL(previewToRemove);
+    }
+    
     setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),

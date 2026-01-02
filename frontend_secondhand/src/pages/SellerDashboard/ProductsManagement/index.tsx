@@ -94,10 +94,17 @@ export default function SellerProductsPage() {
     try {
       const res = await categoryService.getCategories();
       if (res.success && res.data) {
-        setCategories(res.data || []);
+        // Backend trả về data: { categories: [...] }
+        const categoriesArray = Array.isArray(res.data) 
+          ? res.data 
+          : (res.data.categories || []);
+        setCategories(categoriesArray);
+      } else {
+        setCategories([]);
       }
     } catch (error) {
       console.error(error);
+      setCategories([]);
     }
   };
 

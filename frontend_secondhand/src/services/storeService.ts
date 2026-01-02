@@ -15,7 +15,7 @@ export interface RegisterStorePayload {
 
 export interface Store {
   _id: string;
-  seller: string;
+  seller: string | { _id: string; name?: string; email?: string; phone?: string; avatar?: string };
   storeName: string;
   description?: string;
   logo?: string;
