@@ -5,6 +5,9 @@ export type Address = {
   label?: string;
   isDefault?: boolean;
   addressLine: string;
+  city?: string;
+  district?: string;
+  ward?: string;
 };
 
 export type CheckoutItem = {

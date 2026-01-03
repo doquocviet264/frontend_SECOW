@@ -5,6 +5,7 @@ type Props = {
   onToggle: (id: string) => void;
   onInc: (id: string) => void;
   onDec: (id: string) => void;
+  onRemove?: (id: string) => void;
 };
 
 const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫";
@@ -20,7 +21,7 @@ function ConditionTag({ tone, label }: { tone: "green" | "yellow" | "red"; label
   return <div className={`absolute bottom-0 left-0 w-full ${cls} text-white text-[10px] text-center py-0.5`}>{label}</div>;
 }
 
-export default function CartItemRow({ item, onToggle, onInc, onDec }: Props) {
+export default function CartItemRow({ item, onToggle, onInc, onDec, onRemove }: Props) {
   const canDec = item.quantity > 1;
   const canInc = item.quantity < item.stock;
 
@@ -70,6 +71,15 @@ export default function CartItemRow({ item, onToggle, onInc, onDec }: Props) {
                 ))}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => onRemove?.(item.id)}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+              title="Xóa sản phẩm"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
           </div>
 
           <div className="flex items-center justify-between mt-4">

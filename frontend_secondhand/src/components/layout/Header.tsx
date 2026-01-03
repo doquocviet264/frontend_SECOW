@@ -4,6 +4,7 @@ import { authService } from "@/services/authService";
 import { storeService } from "@/services/storeService";
 import type { AuthUser } from "@/types/auth";
 import StorePendingModal from "@/components/StorePendingModal";
+import { useCart } from "@/store/cart";
 
 const NAV = [
   { label: "Trang chủ", href: "/" },
@@ -47,6 +48,7 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
   const [isCheckingStore, setIsCheckingStore] = useState(false);
   const isAuthenticated = authService.isAuthenticated();
   const user = authService.getCurrentUser() as AuthUser | null;
+  const { cartCount } = useCart();
 
   // Đóng menu khi route thay đổi
   useEffect(() => {
@@ -169,6 +171,11 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
                 title="Giỏ hàng"
               >
                 <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center rounded-full bg-primary text-black text-[10px] font-bold leading-none">
+                    {cartCount}
+                  </span>
+                )}
               </button>
 
               <button

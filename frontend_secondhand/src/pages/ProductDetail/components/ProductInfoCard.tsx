@@ -1,4 +1,7 @@
   import { useMemo, useState } from "react";
+  import { useNavigate } from "react-router-dom";
+  import { useCart } from "@/store/cart";
+  import { cartService } from "@/services/cartService";
 
   type Props = {
     isApproved: boolean;
@@ -9,6 +12,7 @@
     price: number;
     oldPrice?: number;
     stock: number;
+    productId: string;
   };
 
   const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";
@@ -22,8 +26,11 @@
     price,
     oldPrice,
     stock,
+    productId,
   }: Props) {
     const [qty, setQty] = useState(1);
+    const { addToCart } = useCart();
+    const navigate = useNavigate();
 
     const canDec = qty > 1;
     const canInc = qty < Math.max(1, stock);
@@ -101,12 +108,25 @@
             <div className="flex gap-3">
               <button
                 type="button"
+                onClick={async () => {
+                  await cartService.addItem({ productId, quantity: qty });
+                  try {
+                    const after = await cartService.getCart();
+                    const items = after?.data?.cart?.items || [];
+                    const found = items.find((it: any) => it.product?.id === productId || it.product?._id === productId);
+                    if (found?.id) {
+                      sessionStorage.setItem("checkoutSelectedItemIds", JSON.stringify([found.id]));
+                    }
+                  } catch {}
+                  navigate("/checkout");
+                }}
                 className="flex-1 bg-primary hover:brightness-95 text-text-main font-bold h-12 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
               >
                 Mua ngay
               </button>
               <button
                 type="button"
+                onClick={() => addToCart(productId, qty)}
                 className="flex-1 bg-primary/10 hover:bg-primary/15 text-primary font-bold h-12 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
               >
                 <span className="material-symbols-outlined">add_shopping_cart</span>

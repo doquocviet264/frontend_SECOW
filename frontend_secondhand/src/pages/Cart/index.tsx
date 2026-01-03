@@ -1,69 +1,14 @@
-import { useMemo, useState } from "react";
-import CartHeader from "./components/CartHeader";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import CartSelectBar from "./components/CartSelectBar";
 import SellerGroup from "./components/SellerGroup";
 import OrderSummary from "./components/OrderSummary";
 import Recommendations from "./components/Recommendations";
 import type { RecommendationItem, SellerCartGroup } from "./types";
 import PageLayout from "@/components/layout/PageLayout";
-const MOCK_GROUPS: SellerCartGroup[] = [
-  {
-    id: "s1",
-    name: "VintageStoreVN",
-    verified: true,
-    checked: true,
-    items: [
-      {
-        id: "i1",
-        title: "Áo khoác Denim Vintage thập niên 90 - Size L",
-        imageUrl:
-          "https://lh3.googleusercontent.com/aida-public/AB6AXuDC5wJxZd7ra7CXVUFrsjcMO2wDekukamtDpAD5vtzO5_I0YafBUUhoFPxscY4KQETejOulVtelfg1X-tmhPUl7Qe4OloAy6eZI5tGListuyqmgF3eA8Lg3tksOH6_cxqRJgHNcdXY8l_wy-x4jx8oyaODTuaKWMxC52lUhD5rsCHJ1-jMJy7TY33soOOKh_AQfcPj8zzFwCSAfvtpsr5vKp6ePE8acKPIui2_Y684af7VDIXdRrShbk38hX7_vf98DxbW2_J18cb5X",
-        oldPrice: 450000,
-        price: 250000,
-        color: "Xanh nhạt",
-        size: "Size L",
-        stock: 1,
-        quantity: 1,
-        checked: true,
-        conditionTag: { label: "Like New", tone: "green" },
-      },
-      {
-        id: "i2",
-        title: "Túi đeo chéo da thật Handmade",
-        imageUrl:
-          "https://lh3.googleusercontent.com/aida-public/AB6AXuA7aLdE3kxoGqf7idfmuuaRDMTv2c4KShRyMBbK_yUK57XSBdyXcC7X-omyODyb9sTvUbmR8SKfPyUFggTM6kZQ7l-wg0q3jVVSpTOCrRkj8ZTjiEQ2-awnrtYLYrh0Rb6HuhQyHNn9g7RCgthGANvwMeTx8DLbbSXTiPTfu-oyf24bWjOmNgMzHPOEPgxBWCqWW3-b9_ECVYi7J6MsWpoqtzOT2MujwJ5xYf4TxifQZTUbP3sjuCOIP_omH-EWCE6cHI8z0eMOotXl",
-        oldPrice: 800000,
-        price: 450000,
-        color: "Nâu bò",
-        stock: 1,
-        quantity: 1,
-        checked: true,
-        conditionTag: { label: "Good Cond", tone: "yellow" },
-      },
-    ],
-  },
-  {
-    id: "s2",
-    name: "RetroHolic",
-    verified: false,
-    checked: true,
-    items: [
-      {
-        id: "i3",
-        title: "Máy ảnh Film Canon AE-1 (Body only)",
-        imageUrl:
-          "https://lh3.googleusercontent.com/aida-public/AB6AXuCf6l8cmtnPuk_2S_yrHquwxrPKIUOONdydoEEsQLeipPw-HsqV1t-tnqZgXz4XUkoivdt4oE5SCe3Ek2S4EK38fV0tUSi4VewWh6Hlg_lRq5xJ9HC8bT2xBOoMoR0n6uqkfFQSTh6bolihnPt5Qtua4gpJ7jfUbgQYtS7n-Xy-WrUH4rbA9SUBtbT69_T0t3ALpN30Vx3LbNPPURwz2xGWt_EtdvBdFbTQ0l9P6nkzEQ9mGzy6L4fmVpVPJ6lRpAO0wQTe-_OJrzwo",
-        oldPrice: 1500000,
-        price: 1200000,
-        color: "Bạc/Đen",
-        stock: 1,
-        quantity: 1,
-        checked: true,
-        conditionTag: { label: "Slight Defect", tone: "red" },
-      },
-    ],
-  },
-];
+import { cartService } from "@/services/cartService";
+import { useCart } from "@/store/cart";
+
 
 const RECS: RecommendationItem[] = [
   {
@@ -107,7 +52,42 @@ const RECS: RecommendationItem[] = [
 ];
 
 export default function CartPage() {
-  const [groups, setGroups] = useState<SellerCartGroup[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<SellerCartGroup[]>([]);
+  const { cartCount, refreshCart } = useCart();
+  const navigate = useNavigate();
+
+  const loadCart = async () => {
+    try {
+      const res = await cartService.getCart();
+      const apiItems = res?.data?.cart?.items || [];
+      if (apiItems.length === 0) {
+        setGroups([]);
+        return;
+      }
+      const uiGroup: SellerCartGroup = {
+        id: "g1",
+        name: "Giỏ hàng của bạn",
+        verified: false,
+        checked: false,
+        items: apiItems.map((it) => ({
+          id: it.id,
+          title: it.product?.title || "Sản phẩm",
+          imageUrl: it.product?.image || "",
+          price: it.product?.price || 0,
+          stock: it.product?.stock || 0,
+          quantity: it.quantity || 1,
+        checked: false,
+        })),
+      };
+      setGroups([uiGroup]);
+    } catch {
+      setGroups([]);
+    }
+  };
+
+  useEffect(() => {
+    loadCart();
+  }, [cartCount]);
 
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const totalCount = allItems.length;
@@ -153,35 +133,42 @@ export default function CartPage() {
     setGroups(syncSellerChecked(next));
   };
 
-  const inc = (itemId: string) => {
-    const next = groups.map((g) => ({
-      ...g,
-      items: g.items.map((it) => {
-        if (it.id !== itemId) return it;
-        if (it.quantity >= it.stock) return it;
-        return { ...it, quantity: it.quantity + 1 };
-      }),
-    }));
-    setGroups(next);
+  const inc = async (itemId: string) => {
+    const current = groups.flatMap((g) => g.items).find((it) => it.id === itemId);
+    if (!current) return;
+    const nextQty = Math.min(current.quantity + 1, current.stock);
+    if (nextQty === current.quantity) return;
+    await cartService.updateItemQuantity(itemId, nextQty);
+    await loadCart();
   };
 
-  const dec = (itemId: string) => {
-    const next = groups.map((g) => ({
-      ...g,
-      items: g.items.map((it) => {
-        if (it.id !== itemId) return it;
-        if (it.quantity <= 1) return it;
-        return { ...it, quantity: it.quantity - 1 };
-      }),
-    }));
-    setGroups(next);
+  const dec = async (itemId: string) => {
+    const current = groups.flatMap((g) => g.items).find((it) => it.id === itemId);
+    if (!current) return;
+    const nextQty = Math.max(current.quantity - 1, 1);
+    if (nextQty === current.quantity) return;
+    await cartService.updateItemQuantity(itemId, nextQty);
+    await loadCart();
   };
 
-  const deleteSelected = () => {
-    const next = groups
-      .map((g) => ({ ...g, items: g.items.filter((it) => !it.checked) }))
-      .filter((g) => g.items.length > 0);
-    setGroups(syncSellerChecked(next));
+  const deleteSelected = async () => {
+    const selectedIds = groups.flatMap((g) => g.items.filter((it) => it.checked).map((it) => it.id));
+    if (selectedIds.length === 0) return;
+    try {
+      await cartService.removeItems(selectedIds);
+    } finally {
+      await refreshCart();
+      await loadCart();
+    }
+  };
+
+  const removeItem = async (itemId: string) => {
+    try {
+      await cartService.removeItem(itemId);
+    } finally {
+      await refreshCart();
+      await loadCart();
+    }
   };
 
   return (
@@ -197,26 +184,57 @@ export default function CartPage() {
             </p>
         </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            <CartSelectBar total={totalCount} allChecked={allChecked} onToggleAll={toggleAll} onDeleteSelected={deleteSelected} />
+        {totalCount === 0 ? (
+          <div className="w-full py-14 text-center">
+            <div className="mx-auto max-w-xl border border-primary/40 rounded-lg p-6">
+              <p className="text-text-secondary dark:text-slate-400 text-base">
+                Giỏ hàng đang trống
+              </p>
+              <p className="text-text-main dark:text-white text-base font-semibold mt-1">
+                ẤN MUA NGAY ĐỂ NHẬN NHIỀU ƯU ĐÃI!
+              </p>
+              <Link
+                to="/"
+                className="mt-4 inline-flex h-10 px-5 items-center justify-center rounded-md bg-primary text-black font-medium hover:opacity-90 transition"
+              >
+                Mua hàng
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-8 flex flex-col gap-6">
+              <CartSelectBar total={totalCount} allChecked={allChecked} onToggleAll={toggleAll} onDeleteSelected={deleteSelected} />
 
-            {groups.map((g) => (
-              <SellerGroup
-                key={g.id}
-                group={g}
-                onToggleSeller={toggleSeller}
-                onToggleItem={toggleItem}
-                onInc={inc}
-                onDec={dec}
+              {groups.map((g) => (
+                <SellerGroup
+                  key={g.id}
+                  group={g}
+                  onToggleSeller={toggleSeller}
+                  onToggleItem={toggleItem}
+                  onInc={inc}
+                  onDec={dec}
+                onRemove={removeItem}
+                />
+              ))}
+            </div>
+
+            <div className="lg:col-span-4 space-y-6">
+              <OrderSummary
+                subtotal={subtotal}
+                discount={discount}
+                totalItems={totalItemsSelected}
+                disabled={totalItemsSelected === 0}
+                disabledNote="Vui lòng chọn ít nhất 1 sản phẩm trước khi thanh toán."
+                onCheckout={() => {
+                  const selectedIds = selectedItems.map((i) => i.id);
+                  sessionStorage.setItem("checkoutSelectedItemIds", JSON.stringify(selectedIds));
+                  navigate("/checkout");
+                }}
               />
-            ))}
+            </div>
           </div>
-
-          <div className="lg:col-span-4 space-y-6">
-            <OrderSummary subtotal={subtotal} discount={discount} totalItems={totalItemsSelected} />
-          </div>
-        </div>
+        )}
 
         <Recommendations items={RECS} />
       </div>
