@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import type { Product } from "@/pages/Home/types";
 
@@ -29,15 +30,18 @@ export default function ProductSection({
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {items.map((p) => (
-          <ProductCard key={p.title} item={p} />
+          <ProductCard key={p.id || p.title} item={p} />
         ))}
       </div>
 
       {showMoreButton ? (
         <div className="flex justify-center mt-6">
-          <button className="px-6 py-2 rounded-lg border border-[var(--border-light)] bg-white dark:bg-[var(--surface-dark)] hover:border-[var(--color-primary)] text-sm font-medium transition-colors">
+          <Link
+            to="/products"
+            className="px-6 py-2 rounded-lg border border-[var(--border-light)] bg-white dark:bg-[var(--surface-dark)] hover:border-[var(--color-primary)] text-sm font-medium transition-colors"
+          >
             {moreButtonLabel}
-          </button>
+          </Link>
         </div>
       ) : null}
     </section>

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { getProductRequest } from '../api/ProducstRequest'
+import { getProductRequest, type GetProductsParams } from '../api/ProducstRequest'
 
-export const useProductRequest = () =>
+export const useProductRequest = (params?: GetProductsParams) =>
 	useQuery({
-		queryKey: ['getProductRequest'],
-		queryFn: getProductRequest
+		queryKey: ['getProductRequest', params],
+		queryFn: () => getProductRequest(params)
 	})

@@ -4,6 +4,7 @@ export type Category = {
 };
 
 export type Product = {
+  id?: string;
   title: string;
   imageUrl: string;
   price: string;

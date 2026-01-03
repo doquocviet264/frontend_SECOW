@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { Product } from "@/pages/Home/types";
 
 type Props = {
@@ -6,8 +7,13 @@ type Props = {
 };
 
 export default function ProductCard({ item, showBadge = true }: Props) {
+  const productLink = item.id ? `/products/${item.id}` : "#";
+
   return (
-    <div className="group flex flex-col bg-white dark:bg-[var(--surface-dark)] rounded-lg overflow-hidden border border-[var(--border-light)] dark:border-[var(--border-dark)] hover:shadow-lg transition-all cursor-pointer">
+    <Link
+      to={productLink}
+      className="group flex flex-col bg-white dark:bg-[var(--surface-dark)] rounded-lg overflow-hidden border border-[var(--border-light)] dark:border-[var(--border-dark)] hover:shadow-lg transition-all cursor-pointer"
+    >
       <div className="relative w-full aspect-square overflow-hidden">
         <img
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -15,7 +21,14 @@ export default function ProductCard({ item, showBadge = true }: Props) {
           alt={item.title}
         />
 
-        <button className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 dark:bg-black/50 hover:bg-white text-gray-500 hover:text-red-500 transition-colors">
+        <button
+          className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 dark:bg-black/50 hover:bg-white text-gray-500 hover:text-red-500 transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // TODO: Handle wishlist toggle
+          }}
+        >
           <span className="material-symbols-outlined text-[18px] block">favorite</span>
         </button>
 
@@ -43,6 +56,6 @@ export default function ProductCard({ item, showBadge = true }: Props) {
           <span>{item.timeAgo}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -32,7 +32,7 @@ const CATEGORY_TREE: CategoryModel[] = [
 export default function ProductListingPage() {
 	// --- SỬ DỤNG REACT QUERY HOOK ---
 	// data: đổi tên thành products, gán mặc định là [] nếu data chưa về (undefined)
-	const { data: products = [], isLoading } = useProductRequest()
+	const { data: products = [], isLoading, isError } = useProductRequest()
 	// --------------------------------
 
 	const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -64,10 +64,34 @@ export default function ProductListingPage() {
 		setCurrentPage(1)
 	}
 
+	// Helper function để format price
+	const formatPrice = (price: number): string => {
+		return new Intl.NumberFormat('vi-VN', {
+			style: 'currency',
+			currency: 'VND'
+		}).format(price)
+	}
+
 	const filteredData = useMemo(() => {
-		// Ép kiểu dữ liệu từ API sang Model hiển thị
-		// products bây giờ lấy trực tiếp từ React Query, mặc định là [] nên an toàn để spread (...)
-		let res = [...products] as unknown as ProductModel[]
+		// Map dữ liệu từ API sang Model hiển thị
+		const mappedProducts: ProductModel[] = products.map((p: any) => ({
+			id: p.id,
+			title: p.title,
+			price: p.price,
+			priceText: p.priceText || formatPrice(p.price),
+			imageUrl: p.imageUrl || (p.images && p.images[0]) || 'https://placehold.co/400x300',
+			condition: p.condition || 'Tốt',
+			conditionColor: p.conditionColor || 'blue',
+			sellerName: p.sellerName || 'Unknown',
+			sellerAvatarUrl: p.sellerAvatarUrl,
+			location: typeof p.location === 'string' ? p.location : (p.location?.city || ''),
+			categoryId: p.categoryId || '',
+			timeAgo: p.timeAgo || '',
+			photosCount: p.images?.length || 0,
+			isLiked: p.isLiked || false
+		}))
+
+		let res = [...mappedProducts]
 
 		if (filters.categoryIds.length > 0) {
 			res = res.filter((p) => filters.categoryIds.includes(p.categoryId))
@@ -101,6 +125,16 @@ export default function ProductListingPage() {
 				{isLoading ? (
 					<div className="flex justify-center items-center h-64">
 						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+					</div>
+				) : isError ? (
+					<div className="text-center py-20 bg-white rounded-xl border border-dashed">
+						<p className="text-red-500 mb-2">Đã xảy ra lỗi khi tải sản phẩm.</p>
+						<button
+							onClick={() => window.location.reload()}
+							className="text-blue-600 font-bold mt-2"
+						>
+							Thử lại
+						</button>
 					</div>
 				) : (
 					<div className="flex flex-col lg:flex-row gap-8">
