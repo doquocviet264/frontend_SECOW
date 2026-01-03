@@ -29,7 +29,11 @@ export const addressService = {
         throw new Error("Không thể tải danh sách tỉnh/thành phố");
       }
       const data = await response.json();
-      return data;
+      // Normalize: đảm bảo code luôn là string để tránh lỗi so sánh
+      return data.map((p: any) => ({
+        ...p,
+        code: String(p.code),
+      }));
     } catch (error) {
       console.error("Error fetching provinces:", error);
       throw error;
@@ -44,7 +48,13 @@ export const addressService = {
         throw new Error("Không thể tải danh sách quận/huyện");
       }
       const data = await response.json();
-      return data.districts || [];
+      const districts = data.districts || [];
+      // Normalize: đảm bảo code luôn là string để tránh lỗi so sánh
+      return districts.map((d: any) => ({
+        ...d,
+        code: String(d.code),
+        province_code: String(d.province_code || provinceCode),
+      }));
     } catch (error) {
       console.error("Error fetching districts:", error);
       throw error;
@@ -59,7 +69,13 @@ export const addressService = {
         throw new Error("Không thể tải danh sách phường/xã");
       }
       const data = await response.json();
-      return data.wards || [];
+      const wards = data.wards || [];
+      // Normalize: đảm bảo code luôn là string để tránh lỗi so sánh
+      return wards.map((w: any) => ({
+        ...w,
+        code: String(w.code),
+        district_code: String(w.district_code || districtCode),
+      }));
     } catch (error) {
       console.error("Error fetching wards:", error);
       throw error;
@@ -74,7 +90,7 @@ export const addressService = {
       const found = provinces.find(
         (p) => p.name.toLowerCase().trim() === normalizedName
       );
-      return found?.code || null;
+      return found ? String(found.code) : null;
     } catch (error) {
       console.error("Error finding province code:", error);
       return null;
@@ -89,7 +105,7 @@ export const addressService = {
       const found = districts.find(
         (d) => d.name.toLowerCase().trim() === normalizedName
       );
-      return found?.code || null;
+      return found ? String(found.code) : null;
     } catch (error) {
       console.error("Error finding district code:", error);
       return null;
@@ -104,7 +120,7 @@ export const addressService = {
       const found = wards.find(
         (w) => w.name.toLowerCase().trim() === normalizedName
       );
-      return found?.code || null;
+      return found ? String(found.code) : null;
     } catch (error) {
       console.error("Error finding ward code:", error);
       return null;

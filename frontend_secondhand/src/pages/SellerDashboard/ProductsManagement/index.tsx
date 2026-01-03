@@ -157,21 +157,62 @@ export default function SellerProductsPage() {
   };
 
   const handleEdit = (product: Product) => {
+    // Ensure images is an array and filter out invalid entries
+    const imagesArray = Array.isArray(product.images) 
+      ? product.images.filter((img) => img != null && img !== "")
+      : [];
+    
+    // Handle location - could be string or object
+    let locationData = product.location;
+    if (typeof locationData === 'string') {
+      // Try to parse if it's a JSON string
+      try {
+        const parsed = JSON.parse(locationData);
+        locationData = typeof parsed === 'object' && parsed !== null 
+          ? { 
+              city: parsed.city || "", 
+              district: parsed.district || "", 
+              detail: parsed.detail || "" 
+            }
+          : { city: "", district: "", detail: locationData };
+      } catch {
+        // If not JSON, treat as detail string
+        locationData = { city: "", district: "", detail: locationData };
+      }
+    } else if (!locationData || typeof locationData !== 'object') {
+      locationData = { city: "", district: "", detail: "" };
+    } else {
+      // Ensure location object has all required fields
+      locationData = {
+        city: locationData.city || "",
+        district: locationData.district || "",
+        detail: locationData.detail || ""
+      };
+    }
+
+    // Handle attributes - ensure it's an array
+    const attributesArray = Array.isArray(product.attributes) && product.attributes.length > 0
+      ? product.attributes.filter(attr => attr && (attr.name || attr.value))
+      : [];
+
+    // Use categoryId directly if available, otherwise try category._id
+    const categoryId = product.categoryId || product.category?._id || "";
+
     const formData: ProductFormData = {
       id: product._id,
-      title: product.title,
-      description: product.description,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      stock: product.stock,
-      weight: product.weight,
-      brand: product.brand,
-      condition: product.condition,
-      categoryId: product.category?._id || "",
-      video: product.video,
-      location: product.location,
-      attributes: product.attributes,
-      images: product.images
+      title: product.title || "",
+      description: product.description || "",
+      price: product.price || 0,
+      originalPrice: product.originalPrice || 0,
+      stock: product.stock ?? 1,
+      weight: product.weight || 0,
+      brand: product.brand || "",
+      condition: product.condition || "Good",
+      categoryId: categoryId,
+      video: product.video || null,
+      location: locationData,
+      attributes: attributesArray.length > 0 ? attributesArray : [{ name: "", value: "" }],
+      images: imagesArray
     };
 
     setEditingData(formData);
@@ -208,6 +249,33 @@ const handleToggleStatus = async (product: Product) => {
   }
 };
 
+const handleDelete = async (product: Product) => {
+  if (!window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${product.title}" không?\n\nHành động này không thể hoàn tác.`)) {
+    return;
+  }
+
+  try {
+    const res = await productService.deleteProduct(product._id);
+    if (res.success) {
+      // Refresh product list
+      const params = {
+        page: currentPage,
+        limit: pagination.limit,
+        status: activeTab === "all" ? undefined : activeTab,
+        title: debouncedSearchQuery || undefined,
+        categoryId: selectedCategory || undefined,
+        sortBy: sortBy || undefined,
+      };
+      fetchProducts(params);
+    } else {
+      alert(res.message || "Không thể xóa sản phẩm");
+    }
+  } catch (error: any) {
+    console.error(error);
+    alert(error.response?.data?.message || "Lỗi kết nối server");
+  }
+};
+
   const handleDialogSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true);
     try {
@@ -234,19 +302,36 @@ const handleToggleStatus = async (product: Product) => {
         }
       });
 
+      // Handle video: send file if new, or existing URL if editing
       if (data.video instanceof File) {
         formData.append("video", data.video);
+      } else if (data.video && typeof data.video === "string") {
+        // Existing video URL - send as existingVideo
+        formData.append("existingVideo", data.video);
+      } else if (data.video === null && data.id) {
+        // Explicitly removing video when editing
+        formData.append("existingVideo", "");
       }
 
       let res;
+      console.log("Submitting product:", { hasId: !!data.id, id: data.id, isEdit: !!data.id });
       if (data.id) {
+        console.log("Calling updateProduct with id:", data.id);
         res = await productService.updateProduct(data.id, formData);
       } else {
+        console.log("Calling createProduct (new product)");
         res = await productService.createProduct(formData);
       }
       
       if (res.success) {
         setIsDialogOpen(false);
+        setEditingData(null); // Reset editing data after successful submit
+        // Show notification about status change when updating
+        if (data.id) {
+          alert("Cập nhật sản phẩm thành công! Sản phẩm đã được chuyển về trạng thái chờ duyệt.");
+        } else {
+          alert("Tạo sản phẩm thành công! Sản phẩm đang chờ duyệt.");
+        }
         const params = {
            page: data.id ? currentPage : 1,
            limit: pagination.limit,
@@ -420,7 +505,11 @@ const handleToggleStatus = async (product: Product) => {
                           >
                             <span className="material-symbols-outlined text-[20px]">edit</span>
                           </button>
-                          <button className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600" title="Xóa">
+                          <button
+                            onClick={() => handleDelete(product)}
+                            className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600"
+                            title="Xóa"
+                          >
                             <span className="material-symbols-outlined text-[20px]">delete</span>
                           </button>
                         </div>
@@ -471,7 +560,12 @@ const handleToggleStatus = async (product: Product) => {
 
       <ProductDialog
         isOpen={isDialogOpen}
-        onClose={() => !isSubmitting && setIsDialogOpen(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            setIsDialogOpen(false);
+            setEditingData(null); // Reset editing data when closing dialog
+          }
+        }}
         onSubmit={handleDialogSubmit}
         categories={categories}
         initialData={editingData}

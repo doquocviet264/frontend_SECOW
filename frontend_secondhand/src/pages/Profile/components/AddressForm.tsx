@@ -6,6 +6,7 @@ type Props = {
   onSuccess?: () => void;
   onCancel?: () => void;
   initialData?: {
+    addressId?: string;
     receiver?: string;
     phone?: string;
     street?: string;
@@ -13,6 +14,7 @@ type Props = {
     districtCode?: string;
     wardCode?: string;
     label?: string;
+    isDefault?: boolean;
   };
 };
 
@@ -150,7 +152,7 @@ export default function AddressForm({ onSuccess, onCancel, initialData }: Props)
 
     // Validation
     if (!formData.receiver.trim()) {
-      setError("Vui lòng nhập tên người nhận");
+      setError("Vui lòng nhập tên");
       return;
     }
 
@@ -184,33 +186,103 @@ export default function AddressForm({ onSuccess, onCancel, initialData }: Props)
       return;
     }
 
+    // Đảm bảo provinces đã được load
+    if (provinces.length === 0) {
+      setError("Đang tải danh sách tỉnh/thành phố, vui lòng đợi...");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const selectedProvince = provinces.find((p) => p.code === formData.provinceCode);
-      const selectedDistrict = districts.find((d) => d.code === formData.districtCode);
-      const selectedWard = wards.find((w) => w.code === formData.wardCode);
+      // Debug: Log để kiểm tra
+      console.log("Form data:", {
+        provinceCode: formData.provinceCode,
+        districtCode: formData.districtCode,
+        wardCode: formData.wardCode,
+        provincesCount: provinces.length,
+        districtsCount: districts.length,
+        wardsCount: wards.length,
+      });
+
+      if (!formData.provinceCode) {
+        setError("Vui lòng chọn tỉnh/thành phố");
+        setLoading(false);
+        return;
+      }
+
+      // Tìm province với nhiều cách để đảm bảo tìm thấy
+      let selectedProvince = provinces.find((p) => p.code === formData.provinceCode);
+      
+      // Nếu không tìm thấy, thử tìm bằng string comparison
+      if (!selectedProvince) {
+        selectedProvince = provinces.find((p) => String(p.code) === String(formData.provinceCode));
+      }
+      
+      // Nếu vẫn không tìm thấy, thử reload provinces và tìm lại
+      if (!selectedProvince && provinces.length > 0) {
+        console.warn("Province not found, trying to reload...");
+        try {
+          const reloadedProvinces = await addressService.getProvinces();
+          setProvinces(reloadedProvinces);
+          selectedProvince = reloadedProvinces.find((p) => String(p.code) === String(formData.provinceCode));
+        } catch (err) {
+          console.error("Error reloading provinces:", err);
+        }
+      }
+
+      const selectedDistrict = districts.find((d) => String(d.code) === String(formData.districtCode));
+      const selectedWard = wards.find((w) => String(w.code) === String(formData.wardCode));
+
+      if (!selectedProvince) {
+        console.error("Province not found after all attempts:", {
+          provinceCode: formData.provinceCode,
+          provinceCodeType: typeof formData.provinceCode,
+          availableProvinces: provinces.slice(0, 5).map(p => ({ code: p.code, codeType: typeof p.code, name: p.name })),
+          provincesCount: provinces.length,
+        });
+        setError(`Không tìm thấy tỉnh/thành phố với mã: ${formData.provinceCode}. Vui lòng chọn lại.`);
+        setLoading(false);
+        return;
+      }
+
+      console.log("Selected province:", selectedProvince);
 
       const addressData = {
+        receiver: formData.receiver,
+        phone: formData.phone,
         street: formData.street,
-        city: selectedProvince?.name || "",
+        city: selectedProvince.name,
         district: selectedDistrict?.name || "",
         ward: selectedWard?.name || "",
+        provinceCode: formData.provinceCode,
+        districtCode: formData.districtCode,
+        wardCode: formData.wardCode,
+        label: formData.label || "",
+        isDefault: formData.isDefault || false,
       };
 
-      // Update address along with name and phone if provided
-      await userService.updateProfile({
-        name: formData.receiver,
-        phone: formData.phone,
-        address: addressData,
-      });
+      // Add or update address using new API
+      if (initialData?.addressId) {
+        // Update existing address
+        await userService.updateAddressById(initialData.addressId, addressData);
+      } else {
+        // Add new address
+        await userService.addAddress(addressData);
+      }
 
       if (onSuccess) {
         onSuccess();
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Có lỗi xảy ra khi lưu địa chỉ");
+      const errorMessage = err?.response?.data?.message || err?.message || "Có lỗi xảy ra khi lưu địa chỉ";
+      setError(errorMessage);
       console.error("Error saving address:", err);
+      console.error("Error details:", {
+        status: err?.response?.status,
+        data: err?.response?.data,
+        message: errorMessage,
+      });
     } finally {
       setLoading(false);
     }
@@ -231,14 +303,14 @@ export default function AddressForm({ onSuccess, onCancel, initialData }: Props)
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Tên người nhận <span className="text-red-500">*</span>
+            Tên <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.receiver}
             onChange={(e) => setFormData({ ...formData, receiver: e.target.value })}
             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Nhập tên người nhận"
+            placeholder="Nhập tên "
             required
           />
         </div>
