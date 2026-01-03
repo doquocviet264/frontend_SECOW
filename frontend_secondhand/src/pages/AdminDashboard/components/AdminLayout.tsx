@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { authService } from "@/services/authService";
 
 const MENU_ITEMS = [
   { path: "/admin", icon: "dashboard", label: "Tổng quan" },
@@ -63,7 +64,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Footer Sidebar */}
         <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-           <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+           <button
+             onClick={() => authService.logout()}
+             className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+           >
               <span className="material-symbols-outlined">logout</span>
               Đăng xuất
            </button>
