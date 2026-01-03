@@ -24,6 +24,7 @@ export interface Store {
   phone: string;
   email: string;
   isApproved: boolean;
+  isActive?: boolean;
   approvedAt?: string;
   approvedBy?: string;
   rating: {

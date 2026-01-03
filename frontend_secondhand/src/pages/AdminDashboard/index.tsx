@@ -1,28 +1,27 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import AdminLayout from "./components/AdminLayout";
 import { 
   AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, BarChart, Bar 
 } from 'recharts';
+import { adminService } from "@/services/adminService";
 
-// --- MOCK DATA ---
-const REVENUE_DATA = [
-  { name: '01 Nov', value: 2000 },
-  { name: '05 Nov', value: 4500 },
-  { name: '10 Nov', value: 3800 },
-  { name: '15 Nov', value: 6000 },
-  { name: '20 Nov', value: 5200 },
-  { name: '25 Nov', value: 7800 },
-  { name: '30 Nov', value: 8400 },
-];
+// Format số tiền VNĐ
+const formatCurrency = (amount: number): string => {
+  if (amount >= 1000000000) {
+    return `${(amount / 1000000000).toFixed(1)} tỷ`;
+  } else if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)} triệu`;
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`;
+  }
+  return amount.toLocaleString('vi-VN');
+};
 
-const USER_DATA = [
-  { name: 'T2', value: 40 },
-  { name: 'T3', value: 60 },
-  { name: 'T4', value: 45 },
-  { name: 'T5', value: 90 },
-  { name: 'T6', value: 70 },
-  { name: 'T7', value: 100 },
-  { name: 'CN', value: 120 },
-];
+// Format số với dấu phẩy
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('vi-VN');
+};
 
 // Reusable Stat Card Component
 const StatCard = ({ title, value, unit, trend, icon, color }: any) => (
@@ -49,38 +48,133 @@ const StatCard = ({ title, value, unit, trend, icon, color }: any) => (
 );
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
+  const [userGrowthStats, setUserGrowthStats] = useState({ totalNewUsers: 0, growthPercent: 0 });
+  const [pendingProducts, setPendingProducts] = useState<any[]>([]);
+  const [revenueDays, setRevenueDays] = useState(30);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [revenueDays]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch tất cả dữ liệu song song
+      const [statsRes, revenueRes, userGrowthRes, productsRes] = await Promise.all([
+        adminService.getSystemStats(),
+        adminService.getRevenueChart(revenueDays),
+        adminService.getUserGrowthChart(),
+        adminService.getPendingProducts({ page: 1, limit: 5 }),
+      ]);
+
+      if (statsRes.success) {
+        setStats(statsRes.data.stats);
+      }
+
+      if (revenueRes.success) {
+        setRevenueData(revenueRes.data.chartData);
+      }
+
+      if (userGrowthRes.success) {
+        setUserGrowthData(userGrowthRes.data.chartData);
+        setUserGrowthStats({
+          totalNewUsers: userGrowthRes.data.totalNewUsers,
+          growthPercent: userGrowthRes.data.growthPercent,
+        });
+      }
+
+      if (productsRes.success) {
+        setPendingProducts(productsRes.data.products);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveProduct = async (productId: string) => {
+    try {
+      await adminService.updateProductStatus(productId, "active");
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Error approving product:", error);
+    }
+  };
+
+  const handleRejectProduct = async (productId: string) => {
+    try {
+      await adminService.updateProductStatus(productId, "violation", "Vi phạm quy định");
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Error rejecting product:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-gray-500">Đang tải dữ liệu...</div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-red-500">Không thể tải dữ liệu</div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       
       {/* 1. STATS ROW (Grid 5 cols) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <StatCard 
-          title="Doanh thu" value="1.2 tỷ" unit="VNĐ"
-          trend={{ isUp: true, val: "+12.5%" }}
+          title="Doanh thu" 
+          value={formatCurrency(stats.revenue.total)} 
+          unit="VNĐ"
+          trend={{ isUp: true, val: "+0%" }}
           icon="payments"
           color={{ bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-600" }}
         />
         <StatCard 
-          title="Tổng đơn hàng" value="1,050"
-          trend={{ isUp: true, val: "+5.2%" }}
+          title="Tổng đơn hàng" 
+          value={formatNumber(stats.orders.total)}
+          trend={{ isUp: true, val: "+0%" }}
           icon="shopping_bag"
           color={{ bg: "bg-blue-50 dark:bg-blue-900/20", text: "text-blue-600" }}
         />
         <StatCard 
-          title="Sản phẩm" value="5,320"
-          trend={{ isUp: true, val: "+8%" }}
+          title="Sản phẩm" 
+          value={formatNumber(stats.products.total)}
+          trend={{ isUp: true, val: "+0%" }}
           icon="inventory_2"
           color={{ bg: "bg-orange-50 dark:bg-orange-900/20", text: "text-orange-600" }}
         />
         <StatCard 
-          title="Người bán" value="210"
-          trend={{ isUp: false, val: "-2%" }}
+          title="Người bán" 
+          value={formatNumber(stats.stores.approved)}
+          trend={{ isUp: true, val: "+0%" }}
           icon="storefront"
           color={{ bg: "bg-purple-50 dark:bg-purple-900/20", text: "text-purple-600" }}
         />
         <StatCard 
-          title="Người dùng" value="8,400"
-          trend={{ isUp: true, val: "+15%" }}
+          title="Người dùng" 
+          value={formatNumber(stats.users.total)}
+          trend={{ isUp: true, val: "+0%" }}
           icon="person"
           color={{ bg: "bg-teal-50 dark:bg-teal-900/20", text: "text-teal-600" }}
         />
@@ -92,31 +186,42 @@ export default function AdminDashboard() {
            <div className="flex justify-between items-center mb-6">
               <div>
                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">Phân tích doanh thu</h3>
-                 <p className="text-xs text-gray-500">Doanh thu & số lượng đơn hàng trong 30 ngày qua</p>
+                 <p className="text-xs text-gray-500">Doanh thu & số lượng đơn hàng trong {revenueDays} ngày qua</p>
               </div>
-              <select className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold px-3 py-1.5 outline-none">
-                 <option>30 ngày</option>
-                 <option>7 ngày</option>
+              <select 
+                value={revenueDays}
+                onChange={(e) => setRevenueDays(Number(e.target.value))}
+                className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold px-3 py-1.5 outline-none"
+              >
+                 <option value={30}>30 ngày</option>
+                 <option value={7}>7 ngày</option>
               </select>
            </div>
            
            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                 <AreaChart data={REVENUE_DATA}>
-                    <defs>
-                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                       </linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9CA3AF'}} dy={10} />
-                    <Tooltip 
-                       contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                       itemStyle={{color: '#10B981', fontWeight: 'bold'}}
-                    />
-                    <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-                 </AreaChart>
-              </ResponsiveContainer>
+              {revenueData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                   <AreaChart data={revenueData}>
+                      <defs>
+                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                         </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9CA3AF'}} dy={10} />
+                      <Tooltip 
+                         contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                         itemStyle={{color: '#10B981', fontWeight: 'bold'}}
+                         formatter={(value: any) => `${formatCurrency(value)} VNĐ`}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                   </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Không có dữ liệu
+                </div>
+              )}
            </div>
         </div>
 
@@ -126,23 +231,31 @@ export default function AdminDashboard() {
            <p className="text-xs text-gray-500 mb-6">Người dùng mới đăng ký tuần này</p>
            
            <div className="flex-1 min-h-[150px]">
-              <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={USER_DATA}>
-                    <Tooltip 
-                       cursor={{fill: 'transparent'}}
-                       contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Bar dataKey="value" fill="#E5E7EB" radius={[4, 4, 4, 4]} activeBar={{ fill: '#10B981' }} />
-                 </BarChart>
-              </ResponsiveContainer>
+              {userGrowthData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={userGrowthData}>
+                      <Tooltip 
+                         cursor={{fill: 'transparent'}}
+                         contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                      />
+                      <Bar dataKey="value" fill="#E5E7EB" radius={[4, 4, 4, 4]} activeBar={{ fill: '#10B981' }} />
+                   </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Không có dữ liệu
+                </div>
+              )}
            </div>
            
            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-end">
               <div>
-                 <div className="text-4xl font-black text-gray-900 dark:text-white">120</div>
+                 <div className="text-4xl font-black text-gray-900 dark:text-white">{userGrowthStats.totalNewUsers}</div>
                  <div className="text-xs text-gray-500 font-bold mt-1">Người dùng mới</div>
               </div>
-              <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">+5%</span>
+              <span className={`${userGrowthStats.growthPercent >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} px-2 py-1 rounded text-xs font-bold`}>
+                {userGrowthStats.growthPercent >= 0 ? '+' : ''}{userGrowthStats.growthPercent.toFixed(1)}%
+              </span>
            </div>
         </div>
       </div>
@@ -156,46 +269,70 @@ export default function AdminDashboard() {
                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">Sản phẩm chờ duyệt</h3>
                  <p className="text-xs text-gray-500 mt-1">Các sản phẩm mới đăng cần được kiểm duyệt</p>
               </div>
-              <button className="text-sm font-bold text-emerald-600 hover:underline">Xem tất cả</button>
+              <button 
+                onClick={() => navigate("/admin/products-approval")}
+                className="text-sm font-bold text-emerald-600 hover:underline"
+              >
+                Xem tất cả
+              </button>
            </div>
 
            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                 <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 uppercase font-bold text-xs">
-                    <tr>
-                       <th className="px-4 py-3 rounded-l-lg">Sản phẩm</th>
-                       <th className="px-4 py-3">Người bán</th>
-                       <th className="px-4 py-3">Giá</th>
-                       <th className="px-4 py-3">Trạng thái</th>
-                       <th className="px-4 py-3 rounded-r-lg text-right">Hành động</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {[1, 2, 3].map((i) => (
-                       <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                          <td className="px-4 py-4">
-                             <div className="flex items-center gap-3">
-                                <img src={`https://source.unsplash.com/random/100x100?fashion&sig=${i}`} className="w-10 h-10 rounded-lg object-cover" alt="Product" />
-                                <span className="font-medium truncate max-w-[150px]">Áo khoác Vintage {i}</span>
-                             </div>
-                          </td>
-                          <td className="px-4 py-4 text-gray-500">Vintage Shop HN</td>
-                          <td className="px-4 py-4 font-bold">250.000₫</td>
-                          <td className="px-4 py-4">
-                             <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">Chờ duyệt</span>
-                          </td>
-                          <td className="px-4 py-4 text-right">
-                             <button className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded mr-1">
-                                <span className="material-symbols-outlined text-[20px]">check</span>
-                             </button>
-                             <button className="text-red-600 hover:bg-red-50 p-1.5 rounded">
-                                <span className="material-symbols-outlined text-[20px]">close</span>
-                             </button>
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
+              {pendingProducts.length > 0 ? (
+                <table className="w-full text-sm text-left">
+                   <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 uppercase font-bold text-xs">
+                      <tr>
+                         <th className="px-4 py-3 rounded-l-lg">Sản phẩm</th>
+                         <th className="px-4 py-3">Người bán</th>
+                         <th className="px-4 py-3">Giá</th>
+                         <th className="px-4 py-3">Trạng thái</th>
+                         <th className="px-4 py-3 rounded-r-lg text-right">Hành động</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {pendingProducts.map((product) => (
+                         <tr key={product._id} className="group hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                            <td className="px-4 py-4">
+                               <div className="flex items-center gap-3">
+                                  <img 
+                                    src={product.images && product.images.length > 0 ? product.images[0] : '/placeholder.png'} 
+                                    className="w-10 h-10 rounded-lg object-cover" 
+                                    alt={product.name}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/placeholder.png';
+                                    }}
+                                  />
+                                  <span className="font-medium truncate max-w-[150px]">{product.name}</span>
+                               </div>
+                            </td>
+                            <td className="px-4 py-4 text-gray-500">{product.seller?.name || 'N/A'}</td>
+                            <td className="px-4 py-4 font-bold">{product.price?.toLocaleString('vi-VN')}₫</td>
+                            <td className="px-4 py-4">
+                               <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">Chờ duyệt</span>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                               <button 
+                                 onClick={() => handleApproveProduct(product._id)}
+                                 className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded mr-1"
+                               >
+                                  <span className="material-symbols-outlined text-[20px]">check</span>
+                               </button>
+                               <button 
+                                 onClick={() => handleRejectProduct(product._id)}
+                                 className="text-red-600 hover:bg-red-50 p-1.5 rounded"
+                               >
+                                  <span className="material-symbols-outlined text-[20px]">close</span>
+                               </button>
+                            </td>
+                         </tr>
+                      ))}
+                   </tbody>
+                </table>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Không có sản phẩm chờ duyệt
+                </div>
+              )}
            </div>
         </div>
 
