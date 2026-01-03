@@ -68,15 +68,26 @@ export default function ProductDetailPage() {
 	const product = useMemo((): ProductDetail | null => {
 		if (!apiData) return null
 
+		// Parse location nếu là object
+		let locationString = ''
+		if (typeof apiData.location === 'string') {
+			locationString = apiData.location
+		} else if (apiData.location && typeof apiData.location === 'object') {
+			const loc = apiData.location as any
+			locationString = [loc.city, loc.district, loc.detail]
+				.filter(Boolean)
+				.join(', ')
+		}
+
 		return {
 			id: apiData.id,
 			title: apiData.title,
 			price: apiData.price,
-			oldPrice: undefined, // API chưa có
+			oldPrice: apiData.originalPrice || undefined,
 			conditionLabel: mapConditionToLabel(apiData.condition),
 			isApproved: apiData.status === 'active',
-			location: apiData.location,
-			postedAgo: apiData.timeAgo,
+			location: locationString || 'Chưa cập nhật',
+			postedAgo: apiData.timeAgo || 'Chưa xác định',
 			images:
 				apiData.images && apiData.images.length > 0
 					? apiData.images
@@ -92,11 +103,15 @@ export default function ProductDetailPage() {
 			// Tạo thông số kỹ thuật từ các field có sẵn
 			specs: [
 				{ label: 'Mã SKU', value: apiData.sku || 'N/A' },
-				{ label: 'Danh mục', value: apiData.categoryId },
-				{ label: 'Tình trạng', value: apiData.condition },
+				{ label: 'Danh mục', value: apiData.categoryId || 'N/A' },
+				{ label: 'Tình trạng', value: apiData.condition || 'N/A' },
+				{ label: 'Thương hiệu', value: apiData.brand || 'N/A' },
+				{ label: 'Số lượng', value: String(apiData.stock || 1) },
 				{
 					label: 'Ngày đăng',
-					value: new Date(apiData.createdAt).toLocaleDateString('vi-VN')
+					value: apiData.createdAt
+						? new Date(apiData.createdAt).toLocaleDateString('vi-VN')
+						: 'N/A'
 				}
 			],
 

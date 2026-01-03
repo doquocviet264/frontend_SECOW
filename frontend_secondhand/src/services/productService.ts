@@ -12,7 +12,33 @@ export interface GetSellerProductsParams {
   limit?: number;
 }
 
+export interface GetProductsParams {
+  page?: number;
+  limit?: number;
+  categoryId?: string;
+  location?: string;
+  condition?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
+  search?: string;
+}
+
 export const productService = {
+  // Public: Lấy danh sách sản phẩm
+  async getProducts(
+    params?: GetProductsParams
+  ): Promise<ApiResponse<{ products: Product[]; pagination: any }>> {
+    const res = await axios.get(`${PRODUCT_PREFIX}`, { params });
+    return res.data;
+  },
+
+  // Public: Lấy chi tiết sản phẩm
+  async getProductById(id: string): Promise<ApiResponse<Product>> {
+    const res = await axios.get(`${PRODUCT_PREFIX}/${id}`);
+    return res.data;
+  },
+
   async getSellerProducts(
     params: GetSellerProductsParams
   ): Promise<ApiResponse<{ products: Product[] }>> {

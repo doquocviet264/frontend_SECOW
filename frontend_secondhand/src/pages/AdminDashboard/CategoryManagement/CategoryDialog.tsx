@@ -24,6 +24,7 @@ export default function CategoryDialog({ isOpen, onClose, onSubmit, initialData 
   
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
   const [parentCategories, setParentCategories] = useState<Category[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +68,7 @@ export default function CategoryDialog({ isOpen, onClose, onSubmit, initialData 
         setParentId(null);
         setPreviewImage(null);
         setSelectedFile(null);
+        setImageUrl("");
       }
     }
   }, [isOpen, initialData]);
@@ -75,17 +77,40 @@ export default function CategoryDialog({ isOpen, onClose, onSubmit, initialData 
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setImageUrl(""); // Clear URL when file is selected
       const objectUrl = URL.createObjectURL(file);
       setPreviewImage(objectUrl);
     }
   };
 
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setImageUrl(url);
+    if (url && isValidUrl(url)) {
+      setPreviewImage(url);
+      setSelectedFile(null); // Clear file when URL is entered
+    } else if (!url) {
+      setPreviewImage(null);
+    }
+  };
+
+  const isValidUrl = (string: string) => {
+    try {
+      const url = new URL(string);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) {
+      return false;
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Priority: selectedFile > imageUrl > previewImage
+    const imageData = selectedFile || imageUrl || previewImage || "";
     onSubmit({
       id: initialData?._id,
       name,
-      image: selectedFile || previewImage || "",
+      image: imageData,
       isActive,
       parentId
     });
@@ -154,6 +179,22 @@ export default function CategoryDialog({ isOpen, onClose, onSubmit, initialData 
                 accept="image/*"
               />
             </div>
+
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <span className="material-symbols-outlined text-[18px]">link</span>
+              </div>
+              <input
+                type="text"
+                value={imageUrl}
+                onChange={handleImageUrlChange}
+                placeholder="Hoặc dán URL hình ảnh..."
+                className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              />
+            </div>
+            {imageUrl && !isValidUrl(imageUrl) && (
+              <p className="text-xs text-red-500">URL không hợp lệ</p>
+            )}
           </div>
 
           <div className="space-y-2">
