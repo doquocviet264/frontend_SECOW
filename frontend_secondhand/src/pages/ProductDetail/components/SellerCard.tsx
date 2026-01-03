@@ -1,11 +1,25 @@
+import { useNavigate } from "react-router-dom";
 import type { Seller } from "../types";
 
 type Props = {
   seller: Seller;
+  storeId?: string | null;
 };
 
-export default function SellerCard({ seller }: Props) {
+export default function SellerCard({ seller, storeId }: Props) {
+  const navigate = useNavigate();
   const initials = seller.name.trim().slice(0, 1).toUpperCase();
+
+  const handleViewProfile = () => {
+    if (storeId) {
+      // Nếu có storeId, điều hướng đến trang seller profile với storeId
+      navigate(`/seller-profile/${storeId}`);
+    } else if (seller.id) {
+      // Nếu không có storeId nhưng có sellerId, điều hướng đến trang seller profile với sellerId
+      // SellerProfilePage sẽ tự động thử lấy store từ sellerId
+      navigate(`/seller-profile/${seller.id}`);
+    }
+  };
 
   return (
     <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-xl border border-border-color dark:border-white/10 flex items-center gap-4 shadow-sm">
@@ -25,9 +39,15 @@ export default function SellerCard({ seller }: Props) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
           <h4 className="font-bold text-text-main dark:text-white truncate">{seller.name}</h4>
-          <button type="button" className="text-xs font-semibold text-primary hover:underline">
-            Xem trang
-          </button>
+          {(storeId || seller.id) && (
+            <button 
+              type="button" 
+              onClick={handleViewProfile}
+              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+            >
+              Xem trang
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">

@@ -122,13 +122,14 @@ export default function ProductDetailPage() {
 				id: apiData.sellerId || 'unknown',
 				name: apiData.sellerName || 'Người bán ẩn danh',
 				avatarUrl: apiData.sellerAvatarUrl || '',
-				// Các trường dưới API chưa có, set mặc định để không lỗi UI
-				rating: 5.0,
-				totalReviews: 0,
-				responseRate: 100,
-				joinedYears: 1,
+				// Sử dụng dữ liệu từ API nếu có, nếu không thì dùng giá trị mặc định
+				rating: apiData.sellerInfo?.rating || 5.0,
+				totalReviews: apiData.sellerInfo?.totalReviews || 0,
+				responseRate: 100, // API chưa có, giữ mặc định
+				joinedYears: apiData.sellerInfo?.joinedYears || 1,
 				isOnline: false
-			}
+			},
+			storeId: apiData.storeId || null
 		}
 	}, [apiData])
 
@@ -208,7 +209,7 @@ export default function ProductDetailPage() {
 								oldPrice={product.oldPrice}
 								stock={Number(apiData?.stock) || 1} // Ép kiểu lại cho chắc chắn
 							/>
-							<SellerCard seller={product.seller} />
+							<SellerCard seller={product.seller} storeId={product.storeId} />
 						</div>
 					</div>
 				</div>

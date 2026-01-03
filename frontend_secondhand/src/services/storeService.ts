@@ -55,5 +55,11 @@ export const storeService = {
     const res = await axios.get(`${STORE_PREFIX}/${id}`);
     return res.data;
   },
+
+  // Lấy thông tin cửa hàng theo seller ID
+  async getStoreBySellerId(sellerId: string): Promise<ApiResponse<{ store: Store }>> {
+    const res = await axios.get(`${STORE_PREFIX}/seller/${sellerId}`);
+    return res.data;
+  },
 };
 

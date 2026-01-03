@@ -31,6 +31,7 @@ export type ProductDetail = {
   specs: { label: string; value: string }[];
   returnPolicy: string[];
   seller: Seller;
+  storeId?: string | null;
 };
 
 export type Review = {
