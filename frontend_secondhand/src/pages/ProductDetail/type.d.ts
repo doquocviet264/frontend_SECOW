@@ -10,6 +10,17 @@ export interface IProductDetail {
 	sellerName: string
 	sellerId: string
 	sellerAvatarUrl: string
+	sellerEmail?: string
+	sellerPhone?: string
+	storeId?: string | null
+	sellerInfo?: {
+		storeName: string
+		rating: number
+		totalReviews: number
+		totalSales: number
+		productCount: number
+		joinedYears: number
+	} | null
 	location: string
 	categoryId: string
 	timeAgo: string

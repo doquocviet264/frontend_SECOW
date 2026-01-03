@@ -30,8 +30,14 @@ export default function SellerProfilePage() {
         setLoading(true);
         setError(null);
 
-        // Fetch store data
-        const storeResponse = await storeService.getStoreById(id);
+        // Thử lấy store theo ID trước, nếu không có thì thử lấy theo sellerId
+        let storeResponse = await storeService.getStoreById(id);
+        
+        // Nếu không tìm thấy store theo ID, thử lấy theo sellerId
+        if (!storeResponse.success || !storeResponse.data?.store) {
+          storeResponse = await storeService.getStoreBySellerId(id);
+        }
+
         if (!storeResponse.success || !storeResponse.data?.store) {
           setError("Không tìm thấy cửa hàng");
           setLoading(false);
