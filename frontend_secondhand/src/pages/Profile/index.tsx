@@ -9,6 +9,7 @@ import OrdersTab from "./components/OrdersTab";
 import PageLayout from "@/components/layout/PageLayout";
 import { authService } from "@/services/authService";
 import { orderService, type Order as ApiOrder } from "@/services/orderService";
+import { userService } from "@/services/userService";
 
 export default function ProfilePage() {
   const [active, setActive] = useState<ProfileTabKey>("overview");
@@ -62,31 +63,35 @@ export default function ProfilePage() {
             avatarUrl: apiUser.avatar || "",
           };
           setUser(userProfile);
+        }
 
-          // Map address from user data
-          if (apiUser.address) {
+        // Fetch addresses from new API
+        const addressesResponse = await userService.getAddresses();
+        if (addressesResponse.success && addressesResponse.data?.addresses) {
+          const mappedAddresses: Address[] = addressesResponse.data.addresses.map((addr: any) => {
             const addressParts = [];
-            if (apiUser.address.street) addressParts.push(apiUser.address.street);
-            if (apiUser.address.ward) addressParts.push(apiUser.address.ward);
-            if (apiUser.address.district) addressParts.push(apiUser.address.district);
-            if (apiUser.address.city) addressParts.push(apiUser.address.city);
+            if (addr.street) addressParts.push(addr.street);
+            if (addr.ward) addressParts.push(addr.ward);
+            if (addr.district) addressParts.push(addr.district);
+            if (addr.city) addressParts.push(addr.city);
 
-            if (addressParts.length > 0) {
-              setAddresses([
-                {
-                  id: "main",
-                  receiver: apiUser.name || "",
-                  phone: apiUser.phone || "",
-                  isDefault: true,
-                  addressLine: addressParts.join(", "),
-                  street: apiUser.address.street,
-                  city: apiUser.address.city,
-                  district: apiUser.address.district,
-                  ward: apiUser.address.ward,
-                },
-              ]);
-            }
-          }
+            return {
+              id: addr._id || addr.id,
+              receiver: addr.receiver || "",
+              phone: addr.phone || "",
+              isDefault: addr.isDefault || false,
+              addressLine: addressParts.join(", "),
+              street: addr.street,
+              city: addr.city,
+              district: addr.district,
+              ward: addr.ward,
+              provinceCode: addr.provinceCode,
+              districtCode: addr.districtCode,
+              wardCode: addr.wardCode,
+              label: addr.label,
+            };
+          });
+          setAddresses(mappedAddresses);
         }
 
         // Fetch orders
@@ -239,42 +244,39 @@ export default function ProfilePage() {
             {active === "address" ? (
               <AddressesTab
                 addresses={addresses}
-                onAddressAdded={() => {
-                  // Refresh user data to get updated address
-                  const refreshData = async () => {
-                    try {
-                      const userResponse = await authService.getMe();
-                      if (userResponse.success && userResponse.data?.user) {
-                        const apiUser = userResponse.data.user as any;
-                        if (apiUser.address) {
-                          const addressParts = [];
-                          if (apiUser.address.street) addressParts.push(apiUser.address.street);
-                          if (apiUser.address.ward) addressParts.push(apiUser.address.ward);
-                          if (apiUser.address.district) addressParts.push(apiUser.address.district);
-                          if (apiUser.address.city) addressParts.push(apiUser.address.city);
+                onAddressAdded={async () => {
+                  // Refresh addresses from new API
+                  try {
+                    const addressesResponse = await userService.getAddresses();
+                    if (addressesResponse.success && addressesResponse.data?.addresses) {
+                      const mappedAddresses: Address[] = addressesResponse.data.addresses.map((addr: any) => {
+                        const addressParts = [];
+                        if (addr.street) addressParts.push(addr.street);
+                        if (addr.ward) addressParts.push(addr.ward);
+                        if (addr.district) addressParts.push(addr.district);
+                        if (addr.city) addressParts.push(addr.city);
 
-                          if (addressParts.length > 0) {
-                            setAddresses([
-                              {
-                                id: "main",
-                                receiver: apiUser.name || "",
-                                phone: apiUser.phone || "",
-                                isDefault: true,
-                                addressLine: addressParts.join(", "),
-                                street: apiUser.address.street,
-                                city: apiUser.address.city,
-                                district: apiUser.address.district,
-                                ward: apiUser.address.ward,
-                              },
-                            ]);
-                          }
-                        }
-                      }
-                    } catch (err) {
-                      console.error("Error refreshing address:", err);
+                        return {
+                          id: addr._id || addr.id,
+                          receiver: addr.receiver || "",
+                          phone: addr.phone || "",
+                          isDefault: addr.isDefault || false,
+                          addressLine: addressParts.join(", "),
+                          street: addr.street,
+                          city: addr.city,
+                          district: addr.district,
+                          ward: addr.ward,
+                          provinceCode: addr.provinceCode,
+                          districtCode: addr.districtCode,
+                          wardCode: addr.wardCode,
+                          label: addr.label,
+                        };
+                      });
+                      setAddresses(mappedAddresses);
                     }
-                  };
-                  refreshData();
+                  } catch (err) {
+                    console.error("Error refreshing addresses:", err);
+                  }
                 }}
               />
             ) : null}

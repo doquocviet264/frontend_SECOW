@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Address } from "../types";
 import AddressForm from "./AddressForm";
+import { userService } from "@/services/userService";
 
 type Props = {
   addresses: Address[];
@@ -10,6 +11,7 @@ type Props = {
 export default function AddressesTab({ addresses, onAddressAdded }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAddClick = () => {
     setEditingAddress(null);
@@ -32,6 +34,37 @@ export default function AddressesTab({ addresses, onAddressAdded }: Props) {
   const handleFormCancel = () => {
     setShowForm(false);
     setEditingAddress(null);
+  };
+
+  const handleDelete = async (addressId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa địa chỉ này?")) {
+      return;
+    }
+
+    try {
+      setDeletingId(addressId);
+      await userService.deleteAddress(addressId);
+      if (onAddressAdded) {
+        onAddressAdded();
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Có lỗi xảy ra khi xóa địa chỉ");
+      console.error("Error deleting address:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleSetDefault = async (addressId: string) => {
+    try {
+      await userService.setDefaultAddress(addressId);
+      if (onAddressAdded) {
+        onAddressAdded();
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Có lỗi xảy ra khi đặt địa chỉ mặc định");
+      console.error("Error setting default address:", err);
+    }
   };
 
   return (
@@ -60,6 +93,7 @@ export default function AddressesTab({ addresses, onAddressAdded }: Props) {
             initialData={
               editingAddress
                 ? {
+                    addressId: editingAddress.id,
                     receiver: editingAddress.receiver,
                     phone: editingAddress.phone,
                     street: editingAddress.street,
@@ -67,6 +101,7 @@ export default function AddressesTab({ addresses, onAddressAdded }: Props) {
                     districtCode: editingAddress.districtCode,
                     wardCode: editingAddress.wardCode,
                     label: editingAddress.label,
+                    isDefault: editingAddress.isDefault,
                   }
                 : undefined
             }
@@ -124,10 +159,20 @@ export default function AddressesTab({ addresses, onAddressAdded }: Props) {
                 >
                   Sửa
                 </button>
+                {!a.isDefault && (
+                  <button
+                    onClick={() => handleSetDefault(a.id)}
+                    className="h-9 px-4 rounded-lg text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    Đặt mặc định
+                  </button>
+                )}
                 <button
-                  className="h-9 px-4 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  onClick={() => handleDelete(a.id)}
+                  disabled={deletingId === a.id}
+                  className="h-9 px-4 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                 >
-                  Xoá
+                  {deletingId === a.id ? "Đang xóa..." : "Xoá"}
                 </button>
               </div>
             </div>

@@ -23,8 +23,13 @@ export default function SignInPage() {
       const response = await authService.login(formData);
 
       if (response.success && response.data) {
-        // Tất cả user đều điều hướng về trang chủ sau khi đăng nhập
-        navigate("/");
+        // Kiểm tra role và điều hướng phù hợp
+        const userRole = response.data.user?.role;
+        if (userRole === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       } else {
         setError(response.message || "Đăng nhập thất bại");
       }

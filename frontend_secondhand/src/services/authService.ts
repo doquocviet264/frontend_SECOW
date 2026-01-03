@@ -4,6 +4,7 @@ import type {
   RegisterPayload,
   VerifyOTPPayload,
   ForgotPasswordPayload,
+  VerifyOTPForPasswordResetPayload,
   ResetPasswordPayload,
   AuthResponse,
   ApiResponse,
@@ -52,6 +53,11 @@ export const authService = {
 
   async forgotPassword(payload: ForgotPasswordPayload): Promise<ApiResponse> {
     const res = await axios.post(`${AUTH_PREFIX}/forgot-password`, payload);
+    return res.data;
+  },
+
+  async verifyOTPForPasswordReset(payload: VerifyOTPForPasswordResetPayload): Promise<ApiResponse> {
+    const res = await axios.post(`${AUTH_PREFIX}/verify-otp-password-reset`, payload);
     return res.data;
   },
 
