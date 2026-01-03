@@ -13,6 +13,16 @@ export interface RegisterStorePayload {
   coverImage?: string;
 }
 
+export interface UpdateStorePayload {
+  storeName?: string;
+  description?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  logo?: string;
+  coverImage?: string;
+}
+
 export interface Store {
   _id: string;
   seller: string | { _id: string; name?: string; email?: string; phone?: string; avatar?: string };
@@ -59,6 +69,12 @@ export const storeService = {
   // Lấy thông tin cửa hàng theo seller ID
   async getStoreBySellerId(sellerId: string): Promise<ApiResponse<{ store: Store }>> {
     const res = await axios.get(`${STORE_PREFIX}/seller/${sellerId}`);
+    return res.data;
+  },
+
+  // Cập nhật thông tin cửa hàng
+  async updateStore(payload: UpdateStorePayload): Promise<ApiResponse<{ store: Store }>> {
+    const res = await axios.put(`${STORE_PREFIX}/me`, payload);
     return res.data;
   },
 };

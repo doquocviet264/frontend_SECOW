@@ -19,6 +19,7 @@ import ResetPasswordPage from "@/pages/Auth/ResetPassword";
 import SellerDashboardPage from "@/pages/SellerDashboard";
 import AdminDashboardPage from "@/pages/AdminDashboard";
 import SellerProductsPage from "@/pages/SellerDashboard/ProductsManagement";
+import StoreSettingsPage from "@/pages/SellerDashboard/StoreSettings";
 import CategoryManagementPage from "@/pages/AdminDashboard/CategoryManagement";
 import ProductApprovalPage from "@/pages/AdminDashboard/ProductApproval";
 import StoreApprovalPage from "@/pages/AdminDashboard/StoreApproval";
@@ -138,6 +139,14 @@ export default function AppRouter() {
           element={
             <RequireAuth allow={["seller", "admin"]}>
               <SellerProductsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/seller/settings"
+          element={
+            <RequireAuth allow={["seller", "admin"]}>
+              <StoreSettingsPage />
             </RequireAuth>
           }
         />
