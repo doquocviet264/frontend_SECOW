@@ -11,7 +11,7 @@ export type ProductFormData = {
   price: number;
   originalPrice: number;
   stock: number;
-  weight: number;
+  size: string | number;
   brand: string;
   condition: "Like New" | "Good" | "Fair" | "Old";
   categoryId: string;
@@ -40,7 +40,7 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
     price: 0,
     originalPrice: 0,
     stock: 1,
-    weight: 0,
+    size: '',
     brand: "",
     condition: "Good",
     categoryId: "",
@@ -55,6 +55,12 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [loadingImageUrl, setLoadingImageUrl] = useState(false);
+  
+  // String states for number inputs to preserve leading zeros while typing
+  const [priceString, setPriceString] = useState<string>("");
+  const [originalPriceString, setOriginalPriceString] = useState<string>("");
+  const [stockString, setStockString] = useState<string>("");
+  const [sizeString, setSizeString] = useState<string>("");
   
   // Address API states
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -379,7 +385,7 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
           price: initialData.price || 0,
           originalPrice: initialData.originalPrice || 0,
           stock: initialData.stock ?? 1,
-          weight: initialData.weight || 0,
+          size: initialData.size || '',
           brand: initialData.brand || "",
           condition: mappedCondition,
           categoryId: initialData.categoryId || "",
@@ -388,6 +394,12 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
           attributes: attributesArray.length > 0 ? attributesArray : [{ name: "", value: "" }],
           location: locationData
         });
+        
+        // Set string values for number inputs
+        setPriceString(initialData.price ? initialData.price.toString() : "");
+        setOriginalPriceString(initialData.originalPrice ? initialData.originalPrice.toString() : "");
+        setStockString(initialData.stock ? initialData.stock.toString() : "1");
+        setSizeString(initialData.size ? initialData.size.toString() : "");
 
         // Create preview URLs for images immediately
         const imgPreviews = imagesArray.map((img) =>
@@ -633,6 +645,11 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
         setAddressMode("select");
         setSelectedAddressId("");
         setShowAddAddressForm(false);
+        // Reset string values for number inputs
+        setPriceString("");
+        setOriginalPriceString("");
+        setStockString("1");
+        setSizeString("");
       }
 
       // Cleanup previous previews
@@ -956,8 +973,8 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
       alert("Giá bán phải lớn hơn 0!");
       return;
     }
-    if (formData.weight <= 0) {
-      alert("Cân nặng phải lớn hơn 0 (để tính phí vận chuyển)!");
+    if (!formData.size || (typeof formData.size === 'string' && formData.size.trim() === '')) {
+      alert("Vui lòng nhập size sản phẩm!");
       return;
     }
     if (formData.stock < 0) {
@@ -1185,19 +1202,123 @@ export default function ProductDialog({ isOpen, onClose, onSubmit, initialData, 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500">Giá bán (VNĐ) <span className="text-red-500">*</span></label>
-                  <input type="number" min={0} value={formData.price} onChange={(e) => handleChange("price", Number(e.target.value))} className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" required />
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    min={0} 
+                    value={priceString} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      // Allow empty string or valid number input
+                      if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setPriceString(val);
+                        const numVal = val === "" ? 0 : parseFloat(val);
+                        if (!isNaN(numVal)) {
+                          handleChange("price", numVal);
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val === "") {
+                        setPriceString("");
+                        handleChange("price", 0);
+                      } else {
+                        const numVal = parseFloat(val);
+                        if (!isNaN(numVal)) {
+                          setPriceString(numVal.toString());
+                          handleChange("price", numVal);
+                        }
+                      }
+                    }}
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" 
+                    required 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500">Giá gốc (VNĐ)</label>
-                  <input type="number" min={0} value={formData.originalPrice} onChange={(e) => handleChange("originalPrice", Number(e.target.value))} className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" />
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    min={0} 
+                    value={originalPriceString} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setOriginalPriceString(val);
+                        const numVal = val === "" ? 0 : parseFloat(val);
+                        if (!isNaN(numVal)) {
+                          handleChange("originalPrice", numVal);
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val === "") {
+                        setOriginalPriceString("");
+                        handleChange("originalPrice", 0);
+                      } else {
+                        const numVal = parseFloat(val);
+                        if (!isNaN(numVal)) {
+                          setOriginalPriceString(numVal.toString());
+                          handleChange("originalPrice", numVal);
+                        }
+                      }
+                    }}
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500">Kho hàng</label>
-                  <input type="number" min={0} value={formData.stock} onChange={(e) => handleChange("stock", Number(e.target.value))} className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" />
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    min={0} 
+                    value={stockString} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+$/.test(val)) {
+                        setStockString(val);
+                        const numVal = val === "" ? 0 : parseInt(val, 10);
+                        if (!isNaN(numVal)) {
+                          handleChange("stock", numVal);
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val === "") {
+                        setStockString("0");
+                        handleChange("stock", 0);
+                      } else {
+                        const numVal = parseInt(val, 10);
+                        if (!isNaN(numVal)) {
+                          setStockString(numVal.toString());
+                          handleChange("stock", numVal);
+                        }
+                      }
+                    }}
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" 
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500">Cân nặng (g) <span className="text-red-500">*</span></label>
-                  <input type="number" min={0} value={formData.weight} onChange={(e) => handleChange("weight", Number(e.target.value))} className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" />
+                  <label className="text-xs font-bold text-gray-500">Size <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    value={sizeString} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSizeString(val);
+                      handleChange("size", val);
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      setSizeString(val);
+                      handleChange("size", val);
+                    }}
+                    placeholder="Ví dụ: M, L, XL hoặc 42, 43..."
+                    className="w-full h-10 px-3 rounded-lg border border-gray-200 bg-white dark:bg-gray-900 focus:border-emerald-500 outline-none text-sm" 
+                  />
                 </div>
               </div>
             </div>

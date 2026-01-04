@@ -79,7 +79,7 @@ export const storeService = {
   },
 
   // Lấy thống kê cửa hàng
-  async getStoreStats(): Promise<ApiResponse<{
+  async getStoreStats(startDate?: string, endDate?: string): Promise<ApiResponse<{
     stats: {
       revenue: {
         today: number;
@@ -123,7 +123,10 @@ export const storeService = {
       };
     };
   }>> {
-    const res = await axios.get(`${STORE_PREFIX}/me/stats`);
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const res = await axios.get(`${STORE_PREFIX}/me/stats`, { params });
     return res.data;
   },
 };

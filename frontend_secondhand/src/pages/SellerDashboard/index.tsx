@@ -5,6 +5,9 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { storeService } from "@/services/storeService";
+import { productService } from "@/services/productService";
+import { reviewService } from "@/services/reviewService";
+import { authService } from "@/services/authService";
 
 // Format currency
 const formatCurrency = (amount: number) => {
@@ -33,24 +36,155 @@ export default function SellerDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [rejectedProducts, setRejectedProducts] = useState<any[]>([]);
+  const [newReviews, setNewReviews] = useState<any[]>([]);
+  
+  // Khởi tạo với 7 ngày gần nhất
+  const getDefaultDates = () => {
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 6);
+    startDate.setHours(0, 0, 0, 0);
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  };
+  
+  const [dateRange, setDateRange] = useState(getDefaultDates());
+  const [dateError, setDateError] = useState<string>("");
 
   useEffect(() => {
-    const fetchStats = async () => {
+    // Chỉ fetch khi không có lỗi validation
+    if (dateError) {
+      return;
+    }
+    
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await storeService.getStoreStats();
+        
+        // Fetch stats với tham số startDate và endDate
+        const response = await storeService.getStoreStats(dateRange.startDate, dateRange.endDate);
         if (response.success && response.data?.stats) {
           setStats(response.data.stats);
         }
+
+        // Fetch rejected products
+        try {
+          const rejectedResponse = await productService.getSellerProducts({
+            status: "violation",
+            limit: 5,
+            page: 1,
+          });
+          if (rejectedResponse.success && rejectedResponse.data?.products) {
+            setRejectedProducts(rejectedResponse.data.products);
+          }
+        } catch (error) {
+          console.error("Error fetching rejected products:", error);
+        }
+
+        // Fetch new reviews
+        try {
+          const storeResponse = await storeService.getMyStore();
+          if (storeResponse.success && storeResponse.data?.store) {
+            const sellerId = typeof storeResponse.data.store.seller === 'string' 
+              ? storeResponse.data.store.seller 
+              : storeResponse.data.store.seller._id;
+            
+            if (sellerId) {
+              const reviewsResponse = await reviewService.getSellerReviews(sellerId, {
+                limit: 5,
+                page: 1,
+              });
+              if (reviewsResponse.success && reviewsResponse.data?.reviews) {
+                setNewReviews(reviewsResponse.data.reviews);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching reviews:", error);
+        }
       } catch (error) {
-        console.error("Error fetching store stats:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
-  }, []);
+    fetchDashboardData();
+  }, [dateRange.startDate, dateRange.endDate, dateError]);
+
+  // Hàm xử lý thay đổi ngày bắt đầu
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStartDate = e.target.value;
+    if (!dateRange.endDate) {
+      setDateError("");
+      setDateRange({ ...dateRange, startDate: newStartDate });
+      return;
+    }
+    
+    const start = new Date(newStartDate + 'T00:00:00');
+    const end = new Date(dateRange.endDate + 'T23:59:59');
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 để tính cả ngày đầu và ngày cuối
+    
+    if (diffDays > 7) {
+      // Tự động điều chỉnh endDate về đúng 7 ngày từ startDate
+      const adjustedEndDate = new Date(start);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 6);
+      setDateError("");
+      setDateRange({ 
+        startDate: newStartDate, 
+        endDate: adjustedEndDate.toISOString().split('T')[0] 
+      });
+    } else if (diffDays < 1) {
+      setDateError("Ngày bắt đầu không được sau ngày kết thúc");
+    } else {
+      setDateError("");
+      setDateRange({ ...dateRange, startDate: newStartDate });
+    }
+  };
+
+  // Hàm xử lý thay đổi ngày kết thúc
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEndDate = e.target.value;
+    if (!dateRange.startDate) {
+      setDateError("");
+      setDateRange({ ...dateRange, endDate: newEndDate });
+      return;
+    }
+    
+    const start = new Date(dateRange.startDate + 'T00:00:00');
+    const end = new Date(newEndDate + 'T23:59:59');
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 để tính cả ngày đầu và ngày cuối
+    
+    if (diffDays > 7) {
+      // Tự động điều chỉnh startDate về đúng 7 ngày trước endDate
+      const adjustedStartDate = new Date(end);
+      adjustedStartDate.setDate(adjustedStartDate.getDate() - 6);
+      setDateError("");
+      setDateRange({ 
+        startDate: adjustedStartDate.toISOString().split('T')[0],
+        endDate: newEndDate 
+      });
+    } else if (diffDays < 1) {
+      setDateError("Ngày kết thúc không được trước ngày bắt đầu");
+    } else {
+      setDateError("");
+      setDateRange({ ...dateRange, endDate: newEndDate });
+    }
+  };
+
+  // Format ngày để hiển thị
+  const formatDateDisplay = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}`;
+  };
 
   if (loading) {
     return (
@@ -169,12 +303,61 @@ export default function SellerDashboard() {
          <div className="lg:col-span-2 space-y-8">
             {/* Chart Container */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-               <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">Biểu đồ doanh thu</h3>
-                  <select className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold px-3 py-1.5 outline-none">
-                     <option>Tuần này</option>
-                     <option>Tháng này</option>
-                  </select>
+               <div className="mb-6">
+                  <div className="flex justify-between items-center mb-4">
+                     <h3 className="font-bold text-lg text-gray-900 dark:text-white">Biểu đồ doanh thu</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                     <div className="flex-1">
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 ml-1">
+                           Từ ngày
+                        </label>
+                        <div className="relative">
+                           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">
+                              calendar_today
+                           </span>
+                           <input
+                              type="date"
+                              value={dateRange.startDate}
+                              onChange={handleStartDateChange}
+                              max={dateRange.endDate || new Date().toISOString().split('T')[0]}
+                              className="w-full h-10 pl-10 pr-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-bold outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                           />
+                        </div>
+                     </div>
+                     <div className="flex-1">
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 ml-1">
+                           Đến ngày (tối đa 7 ngày)
+                        </label>
+                        <div className="relative">
+                           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">
+                              event
+                           </span>
+                           <input
+                              type="date"
+                              value={dateRange.endDate}
+                              onChange={handleEndDateChange}
+                              min={dateRange.startDate}
+                              max={(() => {
+                                 if (!dateRange.startDate) return new Date().toISOString().split('T')[0];
+                                 const maxDate = new Date(dateRange.startDate);
+                                 maxDate.setDate(maxDate.getDate() + 6);
+                                 const today = new Date();
+                                 return maxDate > today ? today.toISOString().split('T')[0] : maxDate.toISOString().split('T')[0];
+                              })()}
+                              className="w-full h-10 pl-10 pr-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-bold outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                           />
+                        </div>
+                     </div>
+                  </div>
+                  {dateError && (
+                     <p className="text-xs text-red-500 mt-2 ml-1">{dateError}</p>
+                  )}
+                  {!dateError && dateRange.startDate && dateRange.endDate && (
+                     <p className="text-xs text-gray-500 mt-2 ml-1">
+                        Doanh thu từ {formatDateDisplay(dateRange.startDate)} đến {formatDateDisplay(dateRange.endDate)}
+                     </p>
+                  )}
                </div>
                
                <div className="h-[300px] w-full">
@@ -295,26 +478,55 @@ export default function SellerDashboard() {
                </div>
                
                <div className="space-y-3">
-                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-800">
-                     <div className="flex gap-2">
-                        <span className="material-symbols-outlined text-red-500 text-lg mt-0.5">warning</span>
-                        <div>
-                           <div className="text-sm font-bold text-gray-900 dark:text-white">Sản phẩm bị từ chối</div>
-                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">"Váy hoa nhí vintage" vi phạm chính sách hình ảnh.</p>
-                           <button className="text-xs font-bold text-red-600 mt-2 hover:underline">Xem chi tiết</button>
+                  {/* Rejected Products */}
+                  {rejectedProducts.length > 0 ? (
+                     rejectedProducts.slice(0, 3).map((product) => (
+                        <div key={product._id} className="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-800">
+                           <div className="flex gap-2">
+                              <span className="material-symbols-outlined text-red-500 text-lg mt-0.5">warning</span>
+                              <div className="flex-1 min-w-0">
+                                 <div className="text-sm font-bold text-gray-900 dark:text-white">Sản phẩm bị từ chối</div>
+                                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                    "{product.title}" {product.violationReason || "Vi phạm chính sách"}
+                                 </p>
+                                 <button 
+                                    onClick={() => navigate(`/seller/products`)}
+                                    className="text-xs font-bold text-red-600 mt-2 hover:underline"
+                                 >
+                                    Xem chi tiết
+                                 </button>
+                              </div>
+                           </div>
                         </div>
-                     </div>
-                  </div>
+                     ))
+                  ) : (
+                     <div className="text-xs text-gray-400 text-center py-2">Không có sản phẩm bị từ chối</div>
+                  )}
                   
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800">
-                     <div className="flex gap-2">
-                        <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">star</span>
-                        <div>
-                           <div className="text-sm font-bold text-gray-900 dark:text-white">Đánh giá mới</div>
-                           <p className="text-xs text-gray-500 mt-1">Bạn nhận được 5 sao từ khách hàng Nguyen Van A.</p>
+                  {/* New Reviews */}
+                  {newReviews.length > 0 ? (
+                     newReviews.slice(0, 3).map((review) => (
+                        <div key={review._id} className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800">
+                           <div className="flex gap-2">
+                              <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">star</span>
+                              <div className="flex-1 min-w-0">
+                                 <div className="text-sm font-bold text-gray-900 dark:text-white">Đánh giá mới</div>
+                                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                    Bạn nhận được {review.rating} sao từ khách hàng {typeof review.customer === 'object' ? review.customer.name : 'Khách hàng'}.
+                                    {review.comment && ` "${review.comment.substring(0, 50)}${review.comment.length > 50 ? '...' : ''}"`}
+                                 </p>
+                                 {review.product && typeof review.product === 'object' && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                       Sản phẩm: {review.product.title}
+                                    </p>
+                                 )}
+                              </div>
+                           </div>
                         </div>
-                     </div>
-                  </div>
+                     ))
+                  ) : (
+                     <div className="text-xs text-gray-400 text-center py-2">Chưa có đánh giá mới</div>
+                  )}
                </div>
             </div>
 
@@ -338,32 +550,6 @@ export default function SellerDashboard() {
                      <div className="text-2xl font-black text-red-500">{stats.products?.violation || 0}</div>
                      <div className="text-xs text-gray-500 font-bold mt-1">Bị từ chối</div>
                   </div>
-               </div>
-            </div>
-
-            {/* Top Products */}
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-               <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-gray-900 dark:text-white">Top Sản phẩm</h3>
-                  <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-                     <button className="px-2 py-1 text-[10px] font-bold bg-white dark:bg-gray-600 rounded shadow-sm">Bán chạy</button>
-                     <button className="px-2 py-1 text-[10px] font-bold text-gray-500">Xem nhiều</button>
-                  </div>
-               </div>
-               
-               <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                     <div key={i} className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded bg-gray-200 shrink-0 overflow-hidden">
-                           <img src={`https://source.unsplash.com/random/100x100?clothing&sig=${i}`} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                           <div className="text-sm font-bold truncate">Quần Jean Levi's 501</div>
-                           <div className="text-xs text-gray-500">Đã bán: 12</div>
-                        </div>
-                        <div className="font-black text-sm text-gray-300">#{i}</div>
-                     </div>
-                  ))}
                </div>
             </div>
 

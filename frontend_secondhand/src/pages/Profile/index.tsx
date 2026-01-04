@@ -14,7 +14,6 @@ import { userService } from "@/services/userService";
 export default function ProfilePage() {
   const [active, setActive] = useState<ProfileTabKey>("overview");
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,43 +94,33 @@ export default function ProfilePage() {
           setAddresses(mappedAddresses);
         }
 
-        // Fetch orders
-        const ordersResponse = await orderService.getMyOrders({ limit: 50 });
+        // Fetch orders for activities (only recent ones)
+        const ordersResponse = await orderService.getMyOrders({ limit: 5 });
         if (ordersResponse.success && ordersResponse.data?.orders) {
-          const mappedOrders: Order[] = ordersResponse.data.orders.map((apiOrder) => ({
-            id: apiOrder.orderNumber,
-            _id: apiOrder._id, // Lưu _id để điều hướng đến trang chi tiết
-            createdAt: new Date(apiOrder.createdAt).toISOString().split("T")[0],
-            status: mapOrderStatus(apiOrder.status),
-            itemCount: apiOrder.items.reduce((sum, item) => sum + item.quantity, 0),
-            total: apiOrder.totalAmount,
-          }));
-          setOrders(mappedOrders);
-
           // Generate activities from recent orders
-          const recentOrders = mappedOrders.slice(0, 5);
-          const mappedActivities: ActivityItem[] = recentOrders.map((order, index) => {
-            const firstItem = ordersResponse.data.orders[index]?.items[0];
+          const mappedActivities: ActivityItem[] = ordersResponse.data.orders.map((apiOrder, index) => {
+            const firstItem = apiOrder.items[0];
+            const orderStatus = mapOrderStatus(apiOrder.status);
             return {
               id: `ac${index + 1}`,
-              title: firstItem?.productName || `Đơn hàng ${order.id}`,
+              title: firstItem?.productName || `Đơn hàng ${apiOrder.orderNumber}`,
               subtitle:
-                order.status === "completed"
+                orderStatus === "completed"
                   ? "Đã giao hàng thành công"
-                  : order.status === "shipping"
+                  : orderStatus === "shipping"
                   ? "Đang vận chuyển"
                   : "Đang chờ xử lý",
-              amount: order.total,
+              amount: apiOrder.totalAmount,
               badgeText:
-                order.status === "completed"
+                orderStatus === "completed"
                   ? "Hoàn thành"
-                  : order.status === "shipping"
+                  : orderStatus === "shipping"
                   ? "Đang giao"
                   : "Chờ xử lý",
               badgeTone:
-                order.status === "completed"
+                orderStatus === "completed"
                   ? "green"
-                  : order.status === "shipping"
+                  : orderStatus === "shipping"
                   ? "blue"
                   : "yellow",
               imageUrl: firstItem?.productImage,
@@ -151,11 +140,12 @@ export default function ProfilePage() {
   }, []);
 
   const stats = useMemo(() => {
-    const delivering = orders.filter((o) => o.status === "shipping").length;
+    // Stats will be calculated from activities or fetched separately
+    const delivering = activities.filter((a) => a.badgeTone === "blue").length;
     const selling = 0; // TODO: Fetch from seller API if user is seller
     const walletVnd = 0; // TODO: Fetch from wallet/transaction API
     return { delivering, selling, walletVnd };
-  }, [orders]);
+  }, [activities]);
 
   const handleLogout = () => {
     authService.logout();
@@ -282,7 +272,7 @@ export default function ProfilePage() {
                 }}
               />
             ) : null}
-            {active === "orders" ? <OrdersTab orders={orders} /> : null}
+            {active === "orders" ? <OrdersTab /> : null}
           </div>
         </div>
       </main>
