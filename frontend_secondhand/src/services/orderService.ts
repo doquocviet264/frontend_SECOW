@@ -60,5 +60,21 @@ export const orderService = {
     const res = await axios.get(`${ORDER_PREFIX}/${id}`);
     return res.data;
   },
+
+  async createOrder(payload: {
+    shippingAddress: {
+      fullName: string;
+      phone: string;
+      address: string;
+      city: string;
+      district?: string;
+      ward?: string;
+    };
+    paymentMethod?: "cod" | "bank_transfer" | "stripe" | "vnpay";
+    notes?: string;
+  }): Promise<ApiResponse<{ order: Order }>> {
+    const res = await axios.post(`${ORDER_PREFIX}`, payload);
+    return res.data;
+  },
 };
 

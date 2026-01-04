@@ -1,6 +1,8 @@
 // Service để lấy dữ liệu địa chỉ Việt Nam từ API công khai
 // Sử dụng API: https://provinces.open-api.vn/
 
+import axios from "@/config/axios";
+
 export interface Province {
   code: string;
   name: string;
@@ -21,6 +23,59 @@ export interface Ward {
 const API_BASE_URL = "https://provinces.open-api.vn/api";
 
 export const addressService = {
+  // ================= BACKEND USER ADDRESSES =================
+  async getUserAddresses(): Promise<
+    { success: boolean; data: { addresses: any[] } }
+  > {
+    const res = await axios.get("/v1/addresses");
+    return res.data;
+  },
+
+  async addUserAddress(payload: {
+    receiver: string;
+    phone: string;
+    street: string;
+    city: string;
+    district: string;
+    ward: string;
+    provinceCode?: string;
+    districtCode?: string;
+    wardCode?: string;
+    label?: string;
+    isDefault?: boolean;
+  }): Promise<{ success: boolean; data: { address: any } }> {
+    const res = await axios.post("/v1/addresses", payload);
+    return res.data;
+  },
+
+  async setDefaultAddress(addressId: string): Promise<any> {
+    const res = await axios.put(`/v1/addresses/${addressId}/set-default`);
+    return res.data;
+  },
+
+  async deleteUserAddress(addressId: string): Promise<any> {
+    const res = await axios.delete(`/v1/addresses/${addressId}`);
+    return res.data;
+  },
+
+  async updateUserAddress(addressId: string, payload: Partial<{
+    receiver: string;
+    phone: string;
+    street: string;
+    city: string;
+    district: string;
+    ward: string;
+    provinceCode?: string;
+    districtCode?: string;
+    wardCode?: string;
+    label?: string;
+    isDefault?: boolean;
+  }>): Promise<any> {
+    const res = await axios.put(`/v1/addresses/${addressId}`, payload);
+    return res.data;
+  },
+
+  // ================= PUBLIC LOCATION API =================
   // Lấy danh sách tất cả tỉnh/thành phố
   async getProvinces(): Promise<Province[]> {
     try {

@@ -1,13 +1,19 @@
+import { useNavigate } from "react-router-dom";
+
 type Props = {
   subtotal: number;
   discount: number;
   totalItems: number;
+  onCheckout?: () => void;
+  disabled?: boolean;
+  disabledNote?: string;
 };
 
 const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫";
 
-export default function OrderSummary({ subtotal, discount, totalItems }: Props) {
+export default function OrderSummary({ subtotal, discount, totalItems, onCheckout, disabled = false, disabledNote }: Props) {
   const total = Math.max(0, subtotal - discount);
+  const navigate = useNavigate();
 
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-[#e7f3eb] dark:border-white/10 p-6 sticky top-6">
@@ -57,11 +63,17 @@ export default function OrderSummary({ subtotal, discount, totalItems }: Props) 
 
       <button
         type="button"
-        className="w-full bg-primary hover:brightness-95 text-text-main font-bold rounded-lg py-3.5 px-4 shadow-lg shadow-green-500/20 transition-all duration-200 flex items-center justify-center gap-2 group"
+        onClick={() => (onCheckout ? onCheckout() : navigate("/checkout"))}
+        disabled={disabled}
+        className={`w-full bg-primary text-text-main font-bold rounded-lg py-3.5 px-4 shadow-lg shadow-green-500/20 transition-all duration-200 flex items-center justify-center gap-2 group ${disabled ? "opacity-60 cursor-not-allowed" : "hover:brightness-95"}`}
       >
         Mua hàng ({totalItems})
         <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
       </button>
+
+      {disabled && disabledNote ? (
+        <p className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">{disabledNote}</p>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-dashed border-gray-200 dark:border-white/10">
         <div className="flex flex-col items-center gap-1 text-center">

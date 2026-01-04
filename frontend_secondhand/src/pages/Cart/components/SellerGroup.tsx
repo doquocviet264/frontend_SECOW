@@ -7,9 +7,10 @@ type Props = {
   onToggleItem: (itemId: string) => void;
   onInc: (itemId: string) => void;
   onDec: (itemId: string) => void;
+  onRemove?: (itemId: string) => void;
 };
 
-export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc, onDec }: Props) {
+export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc, onDec, onRemove }: Props) {
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-[#e7f3eb] dark:border-white/10 overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-[#e7f3eb] dark:border-white/10 bg-[#f8fcf9] dark:bg-white/5">
@@ -41,7 +42,7 @@ export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc
       </div>
 
       {group.items.map((it) => (
-        <CartItemRow key={it.id} item={it} onToggle={onToggleItem} onInc={onInc} onDec={onDec} />
+        <CartItemRow key={it.id} item={it} onToggle={onToggleItem} onInc={onInc} onDec={onDec} onRemove={onRemove} />
       ))}
     </div>
   );
