@@ -8,6 +8,7 @@ import type { RecommendationItem, SellerCartGroup } from "./types";
 import PageLayout from "@/components/layout/PageLayout";
 import { cartService } from "@/services/cartService";
 import { useCart } from "@/store/cart";
+import axios from "@/config/axios";
 
 
 const RECS: RecommendationItem[] = [
@@ -64,22 +65,53 @@ export default function CartPage() {
         setGroups([]);
         return;
       }
-      const uiGroup: SellerCartGroup = {
-        id: "g1",
-        name: "Giỏ hàng của bạn",
-        verified: false,
-        checked: false,
-        items: apiItems.map((it) => ({
+      // Fetch seller info for each product to group by seller
+      const uniqueProductIds = Array.from(new Set(apiItems.map((i) => i.product?.id).filter(Boolean))) as string[];
+      const productMap = new Map<string, { sellerId: string; sellerName: string }>();
+      await Promise.all(
+        uniqueProductIds.map(async (pid) => {
+          try {
+            const res = await axios.get(`/v1/products/${pid}`);
+            const prod = res.data?.data?.product || res.data?.data || res.data;
+            const sellerId = prod?.sellerId || prod?.seller?._id || "";
+            const sellerName = prod?.sellerName || prod?.seller?.storeName || "Người bán";
+            if (sellerId) productMap.set(pid, { sellerId, sellerName });
+          } catch {
+            // ignore individual failures
+          }
+        })
+      );
+
+      const sellerIdToGroup: Record<string, SellerCartGroup> = {};
+      for (const it of apiItems) {
+        const pid = it.product?.id || "";
+        const sellerInfo = pid ? productMap.get(pid) : undefined;
+        const sellerId = sellerInfo?.sellerId || "unknown";
+        const sellerName = sellerInfo?.sellerName || "Người bán";
+
+        if (!sellerIdToGroup[sellerId]) {
+          sellerIdToGroup[sellerId] = {
+            id: sellerId,
+            name: sellerName,
+            verified: false,
+            checked: false,
+            items: [],
+          };
+        }
+
+        sellerIdToGroup[sellerId].items.push({
           id: it.id,
+          productId: it.product?.id || "",
           title: it.product?.title || "Sản phẩm",
           imageUrl: it.product?.image || "",
           price: it.product?.price || 0,
           stock: it.product?.stock || 0,
           quantity: it.quantity || 1,
-        checked: false,
-        })),
-      };
-      setGroups([uiGroup]);
+          checked: false,
+        });
+      }
+
+      setGroups(Object.values(sellerIdToGroup));
     } catch {
       setGroups([]);
     }
@@ -214,7 +246,11 @@ export default function CartPage() {
                   onToggleItem={toggleItem}
                   onInc={inc}
                   onDec={dec}
-                onRemove={removeItem}
+                  onRemove={removeItem}
+                  onChat={(sellerId, sellerName) => {
+                    navigate(`/chat?with=${sellerId}&name=${encodeURIComponent(sellerName)}`);
+                  }}
+                  onOpenProduct={(pid) => navigate(`/products/${pid}`)}
                 />
               ))}
             </div>

@@ -12,6 +12,7 @@ import OrderDetailPage from "@/pages/OrderDetail";
 import SellerProfilePage from "@/pages/SellerProfile";
 import WishlistPage from "@/pages/Wishlist";
 import BecomeSellerPage from "@/pages/Become-Seller";
+import ChatPage from "@/pages/Chat";
 import SignInPage from "@/pages/Auth/SignIn";
 import SignUpPage from "@/pages/Auth/SignUp";
 import ForgotPasswordPage from "@/pages/Auth/ForgotPassword";
@@ -114,6 +115,14 @@ export default function AppRouter() {
           }
         />
         <Route path="/become-seller" element={<BecomeSellerPage />} />
+        <Route
+          path="/chat"
+          element={
+            <RequireAuth allow={["user", "seller", "admin"]}>
+              <ChatPage />
+            </RequireAuth>
+          }
+        />
         <Route path="/auth/signin" element={<SignInPage />} />
         <Route path="/auth/signup" element={<SignUpPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />

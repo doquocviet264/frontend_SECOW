@@ -8,9 +8,11 @@ type Props = {
   onInc: (itemId: string) => void;
   onDec: (itemId: string) => void;
   onRemove?: (itemId: string) => void;
+  onChat?: (sellerId: string, sellerName: string) => void;
+  onOpenProduct?: (productId: string) => void;
 };
 
-export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc, onDec, onRemove }: Props) {
+export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc, onDec, onRemove, onChat, onOpenProduct }: Props) {
   return (
     <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-[#e7f3eb] dark:border-white/10 overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-[#e7f3eb] dark:border-white/10 bg-[#f8fcf9] dark:bg-white/5">
@@ -35,6 +37,7 @@ export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc
         <button
           type="button"
           className="text-text-secondary hover:text-primary text-sm font-medium flex items-center gap-1 transition-colors"
+          onClick={() => onChat?.(group.id, group.name)}
         >
           <span className="material-symbols-outlined text-[18px]">chat</span>
           Chat ngay
@@ -42,7 +45,15 @@ export default function SellerGroup({ group, onToggleSeller, onToggleItem, onInc
       </div>
 
       {group.items.map((it) => (
-        <CartItemRow key={it.id} item={it} onToggle={onToggleItem} onInc={onInc} onDec={onDec} onRemove={onRemove} />
+        <CartItemRow
+          key={it.id}
+          item={it}
+          onToggle={onToggleItem}
+          onInc={onInc}
+          onDec={onDec}
+          onRemove={onRemove}
+          onOpenProduct={onOpenProduct}
+        />
       ))}
     </div>
   );

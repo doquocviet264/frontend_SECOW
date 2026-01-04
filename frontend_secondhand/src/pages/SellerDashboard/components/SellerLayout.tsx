@@ -2,11 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { storeService } from "@/services/storeService";
 import type { Store } from "@/services/storeService";
+import { messageService } from "@/services/messageService";
+import { getSocket } from "@/config/socket";
 
 const MENU_ITEMS = [
   { path: "/seller/dashboard", icon: "dashboard", label: "Tổng quan" },
   { path: "/seller/products", icon: "inventory_2", label: "Sản phẩm" },
   { path: "/seller/orders", icon: "shopping_bag", label: "Đơn hàng" },
+  { path: "/chat", icon: "forum", label: "Tin nhắn", isChat: true },
   { path: "/seller/settings", icon: "settings", label: "Thiết lập Shop" },
 ];
 
@@ -14,6 +17,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   const location = useLocation();
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     const fetchStore = async () => {
@@ -30,6 +34,31 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
     };
 
     fetchStore();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadUnread = async () => {
+      try {
+        const res = await messageService.getConversations();
+        const total = (res.conversations || []).reduce((s, c: any) => s + (c.unreadCount || 0), 0);
+        if (mounted) setUnread(total);
+      } catch {}
+    };
+    loadUnread();
+
+    // Listen realtime to update unread
+    const socket = getSocket();
+    const refresh = () => loadUnread();
+    socket.on("message:new", refresh);
+    socket.on("message:read", refresh);
+    socket.on("conversation:updated", refresh);
+    return () => {
+      mounted = false;
+      socket.off("message:new", refresh);
+      socket.off("message:read", refresh);
+      socket.off("conversation:updated", refresh);
+    };
   }, []);
 
   return (
@@ -74,7 +103,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1 relative">
           {MENU_ITEMS.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -90,7 +119,12 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
                 <span className={`material-symbols-outlined text-[22px] ${isActive ? 'filled' : ''}`}>
                    {item.icon}
                 </span>
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.isChat && unread > 0 ? (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px]">
+                    {unread}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -125,6 +159,19 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
               <span className="hidden sm:inline">Quay về trang chủ</span>
             </Link>
           </div>
+          <Link
+            to="/chat"
+            className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            title="Tin nhắn"
+          >
+            <span className="material-symbols-outlined text-[20px]">forum</span>
+            <span className="hidden sm:inline">Tin nhắn</span>
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
+                {unread}
+              </span>
+            )}
+          </Link>
         </div>
 
         {/* Content */}

@@ -209,6 +209,9 @@ export default function ProductDetailPage() {
 								oldPrice={product.oldPrice}
 								stock={Number(apiData?.stock) || 1} // Ép kiểu lại cho chắc chắn
 								productId={product.id}
+								sellerId={product.seller.id}
+								sellerName={product.seller.name}
+								productImage={product.images?.[0]}
 							/>
 							<SellerCard seller={product.seller} storeId={product.storeId} />
 						</div>

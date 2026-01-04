@@ -6,6 +6,7 @@ type Props = {
   onInc: (id: string) => void;
   onDec: (id: string) => void;
   onRemove?: (id: string) => void;
+  onOpenProduct?: (productId: string) => void;
 };
 
 const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫";
@@ -21,7 +22,7 @@ function ConditionTag({ tone, label }: { tone: "green" | "yellow" | "red"; label
   return <div className={`absolute bottom-0 left-0 w-full ${cls} text-white text-[10px] text-center py-0.5`}>{label}</div>;
 }
 
-export default function CartItemRow({ item, onToggle, onInc, onDec, onRemove }: Props) {
+export default function CartItemRow({ item, onToggle, onInc, onDec, onRemove, onOpenProduct }: Props) {
   const canDec = item.quantity > 1;
   const canInc = item.quantity < item.stock;
 
@@ -37,18 +38,30 @@ export default function CartItemRow({ item, onToggle, onInc, onDec, onRemove }: 
       </div>
 
       <div className="flex gap-4 grow">
-        <div className="relative shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 dark:border-white/10 group">
+        <button
+          type="button"
+          onClick={() => item.productId && onOpenProduct?.(item.productId)}
+          className="relative shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 dark:border-white/10 group"
+          title="Xem chi tiết sản phẩm"
+        >
           <div
             className="bg-center bg-no-repeat bg-cover w-full h-full transform group-hover:scale-105 transition-transform duration-300"
             style={{ backgroundImage: `url("${item.imageUrl}")` }}
           />
           {item.conditionTag ? <ConditionTag tone={item.conditionTag.tone} label={item.conditionTag.label} /> : null}
-        </div>
+        </button>
 
         <div className="flex flex-col grow justify-between">
           <div className="flex justify-between items-start gap-4">
             <div>
-              <h3 className="text-text-main dark:text-white font-medium text-base line-clamp-2">{item.title}</h3>
+              <button
+                type="button"
+                onClick={() => item.productId && onOpenProduct?.(item.productId)}
+                className="text-left hover:underline"
+                title="Xem chi tiết sản phẩm"
+              >
+                <h3 className="text-text-main dark:text-white font-medium text-base line-clamp-2">{item.title}</h3>
+              </button>
 
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {item.color ? (
