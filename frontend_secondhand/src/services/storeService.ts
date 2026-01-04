@@ -77,5 +77,54 @@ export const storeService = {
     const res = await axios.put(`${STORE_PREFIX}/me`, payload);
     return res.data;
   },
+
+  // Lấy thống kê cửa hàng
+  async getStoreStats(): Promise<ApiResponse<{
+    stats: {
+      revenue: {
+        today: number;
+        todayChange: number;
+        sevenDays: number;
+        sevenDaysChange: number;
+        thirtyDays: number;
+        thirtyDaysChange: number;
+        total: number;
+      };
+      chartData: Array<{ name: string; value: number }>;
+      orders: {
+        total: number;
+        pending: number;
+        confirmed: number;
+        delivered: number;
+        cancelled: number;
+      };
+      recentOrders: Array<{
+        _id: string;
+        orderNumber: string;
+        items: Array<{
+          productName: string;
+          productImage?: string;
+          quantity: number;
+        }>;
+        totalAmount: number;
+        status: string;
+        createdAt: string;
+      }>;
+      products: {
+        total: number;
+        active: number;
+        outOfStock: number;
+        pending: number;
+        violation: number;
+      };
+      rating: {
+        average: number;
+        count: number;
+      };
+    };
+  }>> {
+    const res = await axios.get(`${STORE_PREFIX}/me/stats`);
+    return res.data;
+  },
 };
 

@@ -25,6 +25,7 @@ export default function ProfilePage() {
     switch (status) {
       case "pending":
       case "confirmed":
+      case "packaged":
         return "processing";
       case "shipped":
         return "shipping";
@@ -99,6 +100,7 @@ export default function ProfilePage() {
         if (ordersResponse.success && ordersResponse.data?.orders) {
           const mappedOrders: Order[] = ordersResponse.data.orders.map((apiOrder) => ({
             id: apiOrder.orderNumber,
+            _id: apiOrder._id, // Lưu _id để điều hướng đến trang chi tiết
             createdAt: new Date(apiOrder.createdAt).toISOString().split("T")[0],
             status: mapOrderStatus(apiOrder.status),
             itemCount: apiOrder.items.reduce((sum, item) => sum + item.quantity, 0),

@@ -76,5 +76,37 @@ export const orderService = {
     const res = await axios.post(`${ORDER_PREFIX}`, payload);
     return res.data;
   },
+
+  // Seller APIs
+  async getSellerOrders(params?: GetOrdersParams): Promise<ApiResponse<{ orders: Order[]; pagination: any }>> {
+    const res = await axios.get(`${ORDER_PREFIX}/seller/list`, { params });
+    return res.data;
+  },
+
+  async confirmOrder(id: string): Promise<ApiResponse<{ order: Order }>> {
+    const res = await axios.put(`${ORDER_PREFIX}/${id}/confirm`);
+    return res.data;
+  },
+
+  async rejectOrder(id: string, reason?: string): Promise<ApiResponse<{ order: Order }>> {
+    const res = await axios.put(`${ORDER_PREFIX}/${id}/reject`, { reason });
+    return res.data;
+  },
+
+  async updateOrderStatus(id: string, status: "processing" | "shipped"): Promise<ApiResponse<{ order: Order }>> {
+    const res = await axios.put(`${ORDER_PREFIX}/${id}/status`, { status });
+    return res.data;
+  },
+
+  // Customer APIs
+  async confirmDelivery(id: string): Promise<ApiResponse<{ order: Order }>> {
+    const res = await axios.put(`${ORDER_PREFIX}/${id}/confirm-delivery`);
+    return res.data;
+  },
+
+  async cancelOrder(id: string, reason?: string): Promise<ApiResponse<{ order: Order }>> {
+    const res = await axios.put(`${ORDER_PREFIX}/${id}/cancel`, { reason });
+    return res.data;
+  },
 };
 

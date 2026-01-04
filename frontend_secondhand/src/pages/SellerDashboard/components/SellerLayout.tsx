@@ -7,9 +7,6 @@ const MENU_ITEMS = [
   { path: "/seller/dashboard", icon: "dashboard", label: "Tổng quan" },
   { path: "/seller/products", icon: "inventory_2", label: "Sản phẩm" },
   { path: "/seller/orders", icon: "shopping_bag", label: "Đơn hàng" },
-  { path: "/seller/analytics", icon: "monitoring", label: "Phân tích" },
-  { path: "/seller/finance", icon: "account_balance_wallet", label: "Tài chính" },
-  { path: "/seller/marketing", icon: "campaign", label: "Marketing" },
   { path: "/seller/settings", icon: "settings", label: "Thiết lập Shop" },
 ];
 

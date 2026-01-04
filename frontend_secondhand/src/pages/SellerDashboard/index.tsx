@@ -1,20 +1,84 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import SellerLayout from "./components/SellerLayout";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
+import { storeService } from "@/services/storeService";
 
-// --- MOCK DATA ---
-const CHART_DATA = [
-  { name: 'T2', value: 4000 },
-  { name: 'T3', value: 3000 },
-  { name: 'T4', value: 2000 },
-  { name: 'T5', value: 2780 },
-  { name: 'T6', value: 1890 },
-  { name: 'T7', value: 6390 },
-  { name: 'CN', value: 3490 },
-];
+// Format currency
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Format order status
+const getOrderStatusLabel = (status: string) => {
+  const statusMap: Record<string, { label: string; className: string }> = {
+    pending: { label: "Chờ xác nhận", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" },
+    confirmed: { label: "Đã xác nhận", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400" },
+    packaged: { label: "Đã đóng gói", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400" },
+    shipped: { label: "Đang giao", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" },
+    delivered: { label: "Hoàn tất", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" },
+    cancelled: { label: "Đã hủy", className: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
+    rejected: { label: "Từ chối", className: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400" },
+  };
+  return statusMap[status] || { label: status, className: "bg-gray-100 text-gray-700" };
+};
 
 export default function SellerDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const response = await storeService.getStoreStats();
+        if (response.success && response.data?.stats) {
+          setStats(response.data.stats);
+        }
+      } catch (error) {
+        console.error("Error fetching store stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <SellerLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-gray-500">Đang tải dữ liệu...</div>
+        </div>
+      </SellerLayout>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <SellerLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-gray-500">Không có dữ liệu</div>
+        </div>
+      </SellerLayout>
+    );
+  }
+
+  const revenueToday = stats.revenue?.today || 0;
+  const revenueTodayChange = stats.revenue?.todayChange || 0;
+  const revenueSevenDays = stats.revenue?.sevenDays || 0;
+  const revenueSevenDaysChange = stats.revenue?.sevenDaysChange || 0;
+  const revenueThirtyDays = stats.revenue?.thirtyDays || 0;
+  const revenueThirtyDaysChange = stats.revenue?.thirtyDaysChange || 0;
+
   return (
     <SellerLayout>
       
@@ -26,10 +90,17 @@ export default function SellerDashboard() {
               <span className="material-symbols-outlined text-6xl text-emerald-500">payments</span>
            </div>
            <div className="text-sm text-gray-500 font-medium mb-1">Doanh thu hôm nay</div>
-           <div className="text-3xl font-black text-gray-900 dark:text-white mb-2">1.200.000₫</div>
-           <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded w-fit">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
-              +12.5% <span className="text-gray-500 font-medium ml-1">so với hôm qua</span>
+           <div className="text-3xl font-black text-gray-900 dark:text-white mb-2">{formatCurrency(revenueToday)}</div>
+           <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded w-fit ${
+             revenueTodayChange >= 0 
+               ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20" 
+               : "text-red-600 bg-red-50 dark:bg-red-900/20"
+           }`}>
+              <span className="material-symbols-outlined text-[14px]">
+                {revenueTodayChange >= 0 ? "trending_up" : "trending_down"}
+              </span>
+              {revenueTodayChange >= 0 ? "+" : ""}{revenueTodayChange.toFixed(1)}% 
+              <span className="text-gray-500 font-medium ml-1">so với hôm qua</span>
            </div>
         </div>
 
@@ -39,10 +110,17 @@ export default function SellerDashboard() {
               <span className="material-symbols-outlined text-6xl text-blue-500">calendar_view_week</span>
            </div>
            <div className="text-sm text-gray-500 font-medium mb-1">Doanh thu 7 ngày</div>
-           <div className="text-3xl font-black text-gray-900 dark:text-white mb-2">8.500.000₫</div>
-           <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded w-fit">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
-              +5.2% <span className="text-gray-500 font-medium ml-1">so với tuần trước</span>
+           <div className="text-3xl font-black text-gray-900 dark:text-white mb-2">{formatCurrency(revenueSevenDays)}</div>
+           <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded w-fit ${
+             revenueSevenDaysChange >= 0 
+               ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20" 
+               : "text-red-600 bg-red-50 dark:bg-red-900/20"
+           }`}>
+              <span className="material-symbols-outlined text-[14px]">
+                {revenueSevenDaysChange >= 0 ? "trending_up" : "trending_down"}
+              </span>
+              {revenueSevenDaysChange >= 0 ? "+" : ""}{revenueSevenDaysChange.toFixed(1)}% 
+              <span className="text-gray-500 font-medium ml-1">so với tuần trước</span>
            </div>
         </div>
 
@@ -52,10 +130,17 @@ export default function SellerDashboard() {
               <span className="material-symbols-outlined text-6xl text-orange-500">calendar_month</span>
            </div>
            <div className="text-sm text-gray-500 font-medium mb-1">Doanh thu 30 ngày</div>
-           <div className="text-3xl font-black text-gray-900 dark:text-white mb-2">32.400.000₫</div>
-           <div className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded w-fit">
-              <span className="material-symbols-outlined text-[14px]">trending_down</span>
-              -2.1% <span className="text-gray-500 font-medium ml-1">so với tháng trước</span>
+           <div className="text-3xl font-black text-gray-900 dark:text-white mb-2">{formatCurrency(revenueThirtyDays)}</div>
+           <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded w-fit ${
+             revenueThirtyDaysChange >= 0 
+               ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20" 
+               : "text-red-600 bg-red-50 dark:bg-red-900/20"
+           }`}>
+              <span className="material-symbols-outlined text-[14px]">
+                {revenueThirtyDaysChange >= 0 ? "trending_up" : "trending_down"}
+              </span>
+              {revenueThirtyDaysChange >= 0 ? "+" : ""}{revenueThirtyDaysChange.toFixed(1)}% 
+              <span className="text-gray-500 font-medium ml-1">so với tháng trước</span>
            </div>
         </div>
       </div>
@@ -63,10 +148,10 @@ export default function SellerDashboard() {
       {/* 2. ORDER STATUS CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
          {[
-            { label: "Chờ xác nhận", count: 5, color: "text-amber-600", icon: "pending_actions", border: "border-l-4 border-amber-500" },
-            { label: "Đang giao", count: 12, color: "text-blue-600", icon: "local_shipping", border: "border-l-4 border-blue-500" },
-            { label: "Hoàn tất", count: 86, color: "text-emerald-600", icon: "check_circle", border: "border-l-4 border-emerald-500" },
-            { label: "Đơn hủy", count: 2, color: "text-red-600", icon: "cancel", border: "border-l-4 border-red-500" },
+            { label: "Chờ xác nhận", count: stats.orders?.pending || 0, color: "text-amber-600", icon: "pending_actions", border: "border-l-4 border-amber-500" },
+            { label: "Đã xác nhận", count: stats.orders?.confirmed || 0, color: "text-blue-600", icon: "check_circle_outline", border: "border-l-4 border-blue-500" },
+            { label: "Hoàn tất", count: stats.orders?.delivered || 0, color: "text-emerald-600", icon: "check_circle", border: "border-l-4 border-emerald-500" },
+            { label: "Đơn hủy", count: stats.orders?.cancelled || 0, color: "text-red-600", icon: "cancel", border: "border-l-4 border-red-500" },
          ].map((item, idx) => (
             <div key={idx} className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between ${item.border}`}>
                <div>
@@ -94,7 +179,7 @@ export default function SellerDashboard() {
                
                <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                     <AreaChart data={CHART_DATA}>
+                     <AreaChart data={stats.chartData || []}>
                         <defs>
                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
@@ -107,6 +192,7 @@ export default function SellerDashboard() {
                         <Tooltip 
                            contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
                            itemStyle={{color: '#10B981', fontWeight: 'bold'}}
+                           formatter={(value: number) => formatCurrency(value)}
                         />
                         <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                      </AreaChart>
@@ -118,42 +204,82 @@ export default function SellerDashboard() {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">Đơn hàng mới nhất</h3>
-                  <button className="text-sm font-bold text-emerald-600 hover:underline">Xem tất cả</button>
+                  <button 
+                     onClick={() => navigate("/seller/orders")}
+                     className="text-sm font-bold text-emerald-600 hover:underline"
+                  >
+                     Xem tất cả
+                  </button>
                </div>
                
                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                     <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 uppercase font-bold text-xs">
-                        <tr>
-                           <th className="px-4 py-3 rounded-l-lg">Mã đơn</th>
-                           <th className="px-4 py-3">Sản phẩm</th>
-                           <th className="px-4 py-3">Tổng tiền</th>
-                           <th className="px-4 py-3">Trạng thái</th>
-                           <th className="px-4 py-3 rounded-r-lg">Hành động</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        <tr className="group hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                           <td className="px-4 py-4 font-bold">#DH0092</td>
-                           <td className="px-4 py-4">
-                              <div className="flex items-center gap-3">
-                                 <img src="https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=100" className="w-10 h-10 rounded-lg object-cover" alt="Product" />
-                                 <span className="font-medium truncate max-w-[150px]">Áo khoác Denim Vintage</span>
-                              </div>
-                           </td>
-                           <td className="px-4 py-4 font-bold">450.000₫</td>
-                           <td className="px-4 py-4">
-                              <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">Chờ xác nhận</span>
-                           </td>
-                           <td className="px-4 py-4">
-                              <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                                 Xác nhận
-                              </button>
-                           </td>
-                        </tr>
-                        {/* More rows... */}
-                     </tbody>
-                  </table>
+                  {stats.recentOrders && stats.recentOrders.length > 0 ? (
+                     <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 uppercase font-bold text-xs">
+                           <tr>
+                              <th className="px-4 py-3 rounded-l-lg">Mã đơn</th>
+                              <th className="px-4 py-3">Sản phẩm</th>
+                              <th className="px-4 py-3">Tổng tiền</th>
+                              <th className="px-4 py-3">Trạng thái</th>
+                              <th className="px-4 py-3 rounded-r-lg">Hành động</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                           {stats.recentOrders.map((order: any) => {
+                              const statusInfo = getOrderStatusLabel(order.status);
+                              const firstItem = order.items?.[0];
+                              return (
+                                 <tr key={order._id} className="group hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+                                    <td className="px-4 py-4 font-bold">#{order.orderNumber}</td>
+                                    <td className="px-4 py-4">
+                                       <div className="flex items-center gap-3">
+                                          {firstItem?.productImage ? (
+                                             <img 
+                                                src={firstItem.productImage} 
+                                                className="w-10 h-10 rounded-lg object-cover" 
+                                                alt={firstItem.productName} 
+                                             />
+                                          ) : (
+                                             <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
+                                             </div>
+                                          )}
+                                          <div className="min-w-0">
+                                             <span className="font-medium truncate max-w-[150px] block">
+                                                {firstItem?.productName || "Sản phẩm"}
+                                             </span>
+                                             {order.items.length > 1 && (
+                                                <span className="text-xs text-gray-500">+{order.items.length - 1} sản phẩm khác</span>
+                                             )}
+                                          </div>
+                                       </div>
+                                    </td>
+                                    <td className="px-4 py-4 font-bold">{formatCurrency(order.totalAmount)}</td>
+                                    <td className="px-4 py-4">
+                                       <span className={`px-2 py-1 rounded text-xs font-bold ${statusInfo.className}`}>
+                                          {statusInfo.label}
+                                       </span>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                       {order.status === "pending" && (
+                                          <button 
+                                             onClick={() => navigate(`/seller/orders`)}
+                                             className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                          >
+                                             Xác nhận
+                                          </button>
+                                       )}
+                                    </td>
+                                 </tr>
+                              );
+                           })}
+                        </tbody>
+                     </table>
+                  ) : (
+                     <div className="text-center py-8 text-gray-500">
+                        Chưa có đơn hàng nào
+                     </div>
+                  )}
                </div>
             </div>
          </div>
@@ -197,19 +323,19 @@ export default function SellerDashboard() {
                <h3 className="font-bold text-gray-900 dark:text-white mb-4">Trạng thái sản phẩm</h3>
                <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-center">
-                     <div className="text-2xl font-black text-gray-900 dark:text-white">124</div>
+                     <div className="text-2xl font-black text-gray-900 dark:text-white">{stats.products?.active || 0}</div>
                      <div className="text-xs text-gray-500 font-bold mt-1">Đang bán</div>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl text-center">
-                     <div className="text-2xl font-black text-red-600">8</div>
+                     <div className="text-2xl font-black text-red-600">{stats.products?.outOfStock || 0}</div>
                      <div className="text-xs text-gray-500 font-bold mt-1">Hết hàng</div>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl text-center">
-                     <div className="text-2xl font-black text-amber-600">3</div>
+                     <div className="text-2xl font-black text-amber-600">{stats.products?.pending || 0}</div>
                      <div className="text-xs text-gray-500 font-bold mt-1">Chờ duyệt</div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-center border border-red-100">
-                     <div className="text-2xl font-black text-red-500">1</div>
+                     <div className="text-2xl font-black text-red-500">{stats.products?.violation || 0}</div>
                      <div className="text-xs text-gray-500 font-bold mt-1">Bị từ chối</div>
                   </div>
                </div>
