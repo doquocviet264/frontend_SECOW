@@ -8,8 +8,10 @@ import ProductTabs from './components/ProductTabs'
 import ReviewsSection from './components/ReviewsSection'
 
 // Import Type UI và Type API
-import type { ProductDetail, Review, ProductConditionLabel } from './types' // Type cho UI
+import type { ProductDetail, ProductConditionLabel } from './types' // Type cho UI
 import { useProductDetail } from './hooks/useProductDetailRequest' // 2. Import Hook
+import { useCategoryName } from './hooks/useCategoryName'
+import { useProductReviews } from './hooks/useProductReviews'
 
 import PageLayout from '@/components/layout/PageLayout'
 
@@ -23,26 +25,6 @@ const mapConditionToLabel = (condition: string): ProductConditionLabel => {
 	}
 	return conditionMap[condition] || 'Tốt' // Default fallback
 }
-
-// --- MOCK DATA CHO PHẦN CHƯA CÓ API ---
-const MOCK_REVIEWS: Review[] = [
-	{
-		id: 'r1',
-		name: 'Trần Văn B',
-		timeAgo: '1 tuần trước',
-		rating: 5,
-		content:
-			'Người bán nhiệt tình, đóng gói rất kỹ. Máy đẹp như mô tả, chụp nét căng.',
-		images: ['https://placehold.co/100x100']
-	},
-	{
-		id: 'r2',
-		name: 'Lê Thị C',
-		timeAgo: '1 tháng trước',
-		rating: 4,
-		content: 'Sản phẩm ổn, giao hàng hơi chậm một chút nhưng shop hỗ trợ tốt.'
-	}
-]
 
 const DEFAULT_RETURN_POLICY = [
 	'Hoàn tiền trong 3 ngày nếu sản phẩm sai mô tả.',
@@ -63,6 +45,20 @@ export default function ProductDetailPage() {
 		isLoading,
 		isError
 	} = useProductDetail({ id: id || '' })
+
+	// Fetch category name
+	const { data: categoryName } = useCategoryName(apiData?.categoryId)
+
+	// Fetch product reviews
+	const { data: reviews = [] } = useProductReviews(id)
+
+	// Helper function to format size
+	const formatSize = (size: string | number | undefined): string => {
+		if (!size) return 'N/A'
+		if (typeof size === 'string') return size
+		if (typeof size === 'number') return String(size)
+		return 'N/A'
+	}
 
 	// 3. Mapping Data (Chuyển đổi từ API format sang UI format)
 	const product = useMemo((): ProductDetail | null => {
@@ -102,8 +98,8 @@ export default function ProductDetailPage() {
 
 			// Tạo thông số kỹ thuật từ các field có sẵn
 			specs: [
-				{ label: 'Mã SKU', value: apiData.sku || 'N/A' },
-				{ label: 'Danh mục', value: apiData.categoryId || 'N/A' },
+				{ label: 'Size', value: formatSize(apiData.size) },
+				{ label: 'Danh mục', value: categoryName || apiData.categoryId || 'N/A' },
 				{ label: 'Tình trạng', value: apiData.condition || 'N/A' },
 				{ label: 'Thương hiệu', value: apiData.brand || 'N/A' },
 				{ label: 'Số lượng', value: String(apiData.stock || 1) },
@@ -127,11 +123,12 @@ export default function ProductDetailPage() {
 				totalReviews: apiData.sellerInfo?.totalReviews || 0,
 				responseRate: 100, // API chưa có, giữ mặc định
 				joinedYears: apiData.sellerInfo?.joinedYears || 1,
+				totalSales: apiData.sellerInfo?.totalSales || 0,
 				isOnline: false
 			},
 			storeId: apiData.storeId || null
 		}
-	}, [apiData])
+	}, [apiData, categoryName])
 
 	// --- XỬ LÝ LOADING / ERROR ---
 	if (isLoading) {
@@ -215,8 +212,8 @@ export default function ProductDetailPage() {
 					</div>
 				</div>
 
-				{/* PHẦN REVIEW (Hiện tại vẫn Mock) */}
-				<ReviewsSection reviews={MOCK_REVIEWS} />
+				{/* PHẦN REVIEW */}
+				<ReviewsSection reviews={reviews} />
 			</main>
 		</PageLayout>
 	)

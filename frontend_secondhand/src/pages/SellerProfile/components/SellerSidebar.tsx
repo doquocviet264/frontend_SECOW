@@ -64,20 +64,10 @@ export default function SellerSidebar({ shop }: Props) {
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">Đã bán</div>
           </div>
-          <div className="font-bold text-gray-900 dark:text-white">{shop.stats.soldCount}+</div>
-        </div>
-
-        {/* Response */}
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-               <span className="material-symbols-outlined">schedule</span>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">Phản hồi</div>
-          </div>
-          <div className="text-right">
-             <div className="font-bold text-gray-900 dark:text-white">{shop.stats.responseTime}</div>
-             <div className="text-[10px] text-gray-400">{shop.stats.responseRate}%</div>
+          <div className="font-bold text-gray-900 dark:text-white">
+            {shop.stats.soldCount > 0 
+              ? new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(shop.stats.soldCount)
+              : '0'}
           </div>
         </div>
       </div>

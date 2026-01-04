@@ -79,4 +79,9 @@ export const categoryService = {
     const res = await axios.patch(`${CATEGORY_PREFIX}/${id}/disable`);
     return res.data;
   },
+
+  async getCategoryById(id: string): Promise<ApiResponse<Category>> {
+    const res = await axios.get(`${CATEGORY_PREFIX}/${id}`);
+    return res.data;
+  },
 };

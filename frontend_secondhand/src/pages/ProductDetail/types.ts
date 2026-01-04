@@ -13,6 +13,7 @@ export type Seller = {
   totalReviews: number;
   responseRate: number;
   joinedYears: number;
+  totalSales?: number;
   isOnline?: boolean;
 };
 

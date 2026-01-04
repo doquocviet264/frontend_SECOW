@@ -1,24 +1,55 @@
+import { useState } from "react";
 import type { ProductItem } from "../types";
 
 type Props = {
   products: ProductItem[];
+  newestProducts: ProductItem[];
+  bestSellingProducts: ProductItem[];
 };
 
 const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫";
 
-export default function ShopProductGrid({ products }: Props) {
+type TabType = "all" | "newest" | "bestselling";
+
+export default function ShopProductGrid({ products, newestProducts, bestSellingProducts }: Props) {
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+
+  const getDisplayProducts = () => {
+    switch (activeTab) {
+      case "newest":
+        return newestProducts;
+      case "bestselling":
+        return bestSellingProducts;
+      default:
+        return products;
+    }
+  };
+
+  const displayProducts = getDisplayProducts();
+
+  const tabs = [
+    { key: "all" as TabType, label: "Tất cả sản phẩm" },
+    { key: "newest" as TabType, label: "Mới nhất" },
+    { key: "bestselling" as TabType, label: "Bán chạy" },
+  ];
+
   return (
     <div>
       {/* 1. Filter Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">
         {/* Tabs */}
-        <div className="flex gap-6 overflow-x-auto no-scrollbar">
-          {["Tất cả sản phẩm", "Mới nhất", "Bán chạy"].map((tab, idx) => (
+        <div className="flex gap-6 overflow-x-auto no-scrollbar items-center">
+          {tabs.map((tab) => (
             <button 
-              key={tab}
-              className={`pb-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${idx === 0 ? "text-emerald-500 border-emerald-500" : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-white"}`}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`pb-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab.key 
+                  ? "text-emerald-500 border-emerald-500" 
+                  : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-white"
+              }`}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -32,7 +63,19 @@ export default function ShopProductGrid({ products }: Props) {
 
       {/* 2. Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {products.map((p) => (
+        {displayProducts.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <span className="material-symbols-outlined text-6xl text-gray-400 mb-4">inventory_2</span>
+            <p className="text-gray-600 dark:text-gray-400">
+              {activeTab === "newest" 
+                ? "Chưa có sản phẩm mới nhất" 
+                : activeTab === "bestselling"
+                ? "Chưa có sản phẩm bán chạy"
+                : "Chưa có sản phẩm nào"}
+            </p>
+          </div>
+        ) : (
+          displayProducts.map((p) => (
           <div key={p.id} className="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden relative">
              
              {/* Image Area */}
@@ -75,7 +118,8 @@ export default function ShopProductGrid({ products }: Props) {
                </div>
              </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* 3. Pagination */}

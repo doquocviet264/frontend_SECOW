@@ -12,7 +12,7 @@ export default function ProductGallery({ images }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-border-color dark:border-white/10 bg-surface-light dark:bg-surface-dark group">
+      <div className="relative w-full max-w-md mx-auto aspect-[3/2] rounded-xl overflow-hidden border border-border-color dark:border-white/10 bg-surface-light dark:bg-surface-dark group">
         <div className="absolute top-4 left-4 z-10">
           <span className="bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold">
             {safeImages.length} ảnh
@@ -22,11 +22,11 @@ export default function ProductGallery({ images }: Props) {
         <img
           src={activeUrl}
           alt="product"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
         />
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-w-md mx-auto">
         {safeImages.slice(0, 5).map((url, idx) => (
           <button
             key={url}
