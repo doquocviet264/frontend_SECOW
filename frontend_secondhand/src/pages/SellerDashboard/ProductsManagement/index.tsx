@@ -205,7 +205,7 @@ export default function SellerProductsPage() {
       price: product.price || 0,
       originalPrice: product.originalPrice || 0,
       stock: product.stock ?? 1,
-      weight: product.weight || 0,
+      size: product.size || '',
       brand: product.brand || "",
       condition: product.condition || "Good",
       categoryId: categoryId,
@@ -285,7 +285,7 @@ const handleDelete = async (product: Product) => {
       formData.append("price", data.price.toString());
       formData.append("originalPrice", data.originalPrice.toString());
       formData.append("stock", data.stock.toString());
-      formData.append("weight", data.weight.toString());
+      formData.append("size", typeof data.size === 'string' ? data.size : data.size.toString());
       formData.append("brand", data.brand);
       formData.append("condition", data.condition);
       formData.append("categoryId", data.categoryId);

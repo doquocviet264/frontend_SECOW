@@ -32,6 +32,7 @@ export type OrderDetail = {
   id: string;
   createdAt: string;
   status: OrderStatus;
+  backendStatus?: string; // Backend status để kiểm tra quyền hủy đơn
   shop: ShopInfo;
   tracking: TrackingEvent[];
   items: OrderItem[];
@@ -46,5 +47,10 @@ export type OrderDetail = {
     discount: number;
     total: number;
     method: string;
+  };
+  reviewInfo?: {
+    canReview: boolean;
+    reviewedProducts: string[];
+    allReviewed: boolean;
   };
 };

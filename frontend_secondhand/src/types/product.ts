@@ -15,7 +15,7 @@ export interface Product {
     district: string;
     detail: string;
   };
-  weight: number;
+  size: string | number;
   brand: string;
   category: {
     _id: string;

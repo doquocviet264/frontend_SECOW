@@ -82,6 +82,11 @@ export default function StoreSettingsPage() {
 
         const store: Store = storeResponse.data.store;
 
+        // Load provinces first
+        const provincesData = await addressService.getProvinces();
+        setProvinces(provincesData);
+        setLoadingProvinces(false);
+
         // Parse address if it exists
         let street = "";
         let provinceCode = "";
@@ -89,9 +94,77 @@ export default function StoreSettingsPage() {
         let wardCode = "";
 
         if (store.address) {
-          // Try to parse address - assuming format might be "street, ward, district, province"
-          // Or it might be a simple string
-          street = store.address;
+          // Parse address format: "street, ward, district, province"
+          const addressParts = store.address.split(",").map(part => part.trim());
+          
+          if (addressParts.length >= 4) {
+            // Full address format: street, ward, district, province
+            street = addressParts[0];
+            const wardName = addressParts[1];
+            const districtName = addressParts[2];
+            const provinceName = addressParts[3];
+
+            // Find province code
+            const foundProvinceCode = await addressService.findProvinceCodeByName(provinceName);
+            if (foundProvinceCode) {
+              provinceCode = foundProvinceCode;
+              
+              // Load districts for this province
+              const districtsData = await addressService.getDistrictsByProvince(provinceCode);
+              setDistricts(districtsData);
+              
+              // Find district code
+              const foundDistrictCode = await addressService.findDistrictCodeByName(provinceCode, districtName);
+              if (foundDistrictCode) {
+                districtCode = foundDistrictCode;
+                
+                // Load wards for this district
+                const wardsData = await addressService.getWardsByDistrict(districtCode);
+                setWards(wardsData);
+                
+                // Find ward code
+                const foundWardCode = await addressService.findWardCodeByName(districtCode, wardName);
+                if (foundWardCode) {
+                  wardCode = foundWardCode;
+                }
+              }
+            }
+          } else if (addressParts.length === 1) {
+            // Only street address, no province/district/ward info
+            street = addressParts[0];
+          } else {
+            // Partial address - try to extract what we can
+            // Assume last part is province, second last is district, etc.
+            street = addressParts[0];
+            
+            if (addressParts.length >= 2) {
+              const provinceName = addressParts[addressParts.length - 1];
+              const foundProvinceCode = await addressService.findProvinceCodeByName(provinceName);
+              if (foundProvinceCode) {
+                provinceCode = foundProvinceCode;
+                const districtsData = await addressService.getDistrictsByProvince(provinceCode);
+                setDistricts(districtsData);
+                
+                if (addressParts.length >= 3) {
+                  const districtName = addressParts[addressParts.length - 2];
+                  const foundDistrictCode = await addressService.findDistrictCodeByName(provinceCode, districtName);
+                  if (foundDistrictCode) {
+                    districtCode = foundDistrictCode;
+                    const wardsData = await addressService.getWardsByDistrict(districtCode);
+                    setWards(wardsData);
+                    
+                    if (addressParts.length >= 4) {
+                      const wardName = addressParts[addressParts.length - 3];
+                      const foundWardCode = await addressService.findWardCodeByName(districtCode, wardName);
+                      if (foundWardCode) {
+                        wardCode = foundWardCode;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
 
         // Set form data
@@ -107,16 +180,11 @@ export default function StoreSettingsPage() {
           logo: store.logo || "",
           coverImage: store.coverImage || "",
         });
-
-        // Load provinces
-        const provincesData = await addressService.getProvinces();
-        setProvinces(provincesData);
       } catch (err: any) {
         setError(err?.response?.data?.message || "Có lỗi xảy ra khi tải thông tin cửa hàng");
         console.error("Error fetching store:", err);
       } finally {
         setLoadingStore(false);
-        setLoadingProvinces(false);
       }
     };
 

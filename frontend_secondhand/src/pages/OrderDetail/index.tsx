@@ -40,15 +40,22 @@ export default function OrderDetailPage() {
         const o = res.data.order as any;
         
         // Map items
-        const items: OrderItem[] = (o.items || []).map((it: any) => ({
-          id: String(it._id || it.product?._id || ""),
-          name: it.productName || it.product?.title || "Sản phẩm",
-          variant: it.product?.condition ? `Tình trạng: ${it.product.condition}` : "",
-          price: it.price || 0,
-          quantity: it.quantity || 1,
-          imageUrl: it.productImage || it.product?.images?.[0] || "/placeholder-product.jpg",
-          tags: [],
-        }));
+        const items: OrderItem[] = (o.items || []).map((it: any) => {
+          // Get productId - could be ObjectId or populated object
+          const productId = it.product?._id 
+            ? String(it.product._id) 
+            : (it.product ? String(it.product) : String(it._id || ""));
+          
+          return {
+            id: productId, // Use productId for review matching
+            name: it.productName || it.product?.title || "Sản phẩm",
+            variant: it.product?.condition ? `Tình trạng: ${it.product.condition}` : "",
+            price: it.price || 0,
+            quantity: it.quantity || 1,
+            imageUrl: it.productImage || it.product?.images?.[0] || "/placeholder-product.jpg",
+            tags: [],
+          };
+        });
         
         // Build tracking events based on order status and timestamps
         const tracking: TrackingEvent[] = [];
@@ -140,6 +147,7 @@ export default function OrderDetailPage() {
           id: String(o._id || o.orderNumber || id),
           createdAt: createdAt.toLocaleString("vi-VN"),
           status: uiStatus,
+          backendStatus: o.status, // Store backend status for cancel check
           shop: {
             id: String(o.seller?._id || ""),
             name: o.seller?.name || "Người bán",
@@ -161,6 +169,7 @@ export default function OrderDetailPage() {
             total: o.totalAmount || 0,
             method: o.paymentMethod === "cod" ? "COD" : o.paymentMethod === "bank_transfer" ? "CHUYỂN KHOẢN" : o.paymentMethod?.toUpperCase() || "COD",
           },
+          reviewInfo: o.reviewInfo || undefined,
         };
         
         setOrder(ui);
@@ -221,7 +230,12 @@ export default function OrderDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
             <ShippingStatus tracking={order.tracking} orderStatus={order.status} />
-            <OrderItems items={order.items} />
+            <OrderItems 
+              items={order.items} 
+              orderId={order.id}
+              reviewInfo={order.reviewInfo}
+              onReviewSuccess={handleOrderUpdated}
+            />
             <OrderAddress address={order.shippingAddress} />
           </div>
 
