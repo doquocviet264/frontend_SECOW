@@ -1,21 +1,77 @@
+import { useState } from "react";
 import type { OrderDetail } from "../types";
+import { orderService } from "@/services/orderService";
 
 type Props = {
   order: OrderDetail;
+  onOrderUpdated?: () => void;
 };
 
 const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫";
 
-export default function OrderSidebar({ order }: Props) {
+export default function OrderSidebar({ order, onOrderUpdated }: Props) {
   const { shop, payment } = order;
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Chỉ hiển thị nút khi đơn hàng đã được gửi (shipping) và chưa hoàn thành
+  // Note: order.status là UI status ("shipping" = backend "shipped", "completed" = backend "delivered")
+  const canConfirmDelivery = order.status === "shipping";
+  const isCompleted = order.status === "completed";
+
+  const handleConfirmDelivery = async () => {
+    if (!canConfirmDelivery || isConfirming) return;
+
+    // Xác nhận với người dùng
+    const confirmed = window.confirm(
+      "Bạn có chắc chắn đã nhận được hàng và hài lòng với sản phẩm?\n\n" +
+      "Sau khi xác nhận, đơn hàng sẽ được hoàn tất và bạn không thể hủy đơn hàng nữa."
+    );
+
+    if (!confirmed) return;
+
+    setIsConfirming(true);
+    setError(null);
+
+    try {
+      // order.id được map từ order._id trong OrderDetail component
+      const response = await orderService.confirmDelivery(order.id);
+      
+      // Kiểm tra response thành công
+      if (response.success) {
+        // Gọi callback để reload đơn hàng
+        if (onOrderUpdated) {
+          onOrderUpdated();
+        } else {
+          // Fallback: reload trang
+          window.location.reload();
+        }
+      } else {
+        throw new Error(response.message || "Không thể xác nhận nhận hàng");
+      }
+    } catch (err: any) {
+      console.error("Error confirming delivery:", err);
+      const errorMessage = err?.response?.data?.message || 
+                           err?.response?.data?.error ||
+                           err?.message || 
+                           "Có lỗi xảy ra khi xác nhận nhận hàng";
+      setError(errorMessage);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* 1. Shop Info Card */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3 mb-4">
-           <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
-              <img src={shop.avatarUrl} alt={shop.name} className="w-full h-full object-cover" />
+           <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden flex items-center justify-center">
+              {shop.avatarUrl ? (
+                <img src={shop.avatarUrl} alt={shop.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-gray-400 text-2xl">storefront</span>
+              )}
            </div>
            <div>
               <h4 className="font-bold text-gray-900 dark:text-white text-sm">{shop.name}</h4>
@@ -73,13 +129,51 @@ export default function OrderSidebar({ order }: Props) {
            </div>
         </div>
 
-        <button className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-95">
-           Đã nhận được hàng
-        </button>
-        
-        <p className="text-center text-xs text-gray-400 mt-3">
-           Vui lòng chỉ nhấn "Đã nhận được hàng" khi bạn đã kiểm tra và hài lòng với sản phẩm.
-        </p>
+        {/* Status Badge */}
+        {isCompleted && (
+          <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <span className="material-symbols-outlined text-[20px]">check_circle</span>
+              <span className="font-bold text-sm">Đơn hàng đã hoàn thành</span>
+            </div>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+              Cảm ơn bạn đã mua sắm tại SecondHand!
+            </p>
+          </div>
+        )}
+
+        {/* Confirm Delivery Button */}
+        {canConfirmDelivery && !isCompleted && (
+          <>
+            <button 
+              onClick={handleConfirmDelivery}
+              disabled={isConfirming}
+              className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 transition-all active:scale-95 disabled:active:scale-100 flex items-center justify-center gap-2"
+            >
+              {isConfirming ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Đang xác nhận...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                  <span>Đã nhận được hàng</span>
+                </>
+              )}
+            </button>
+            
+            {error && (
+              <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+            
+            <p className="text-center text-xs text-gray-400 mt-3">
+               Vui lòng chỉ nhấn "Đã nhận được hàng" khi bạn đã kiểm tra và hài lòng với sản phẩm.
+            </p>
+          </>
+        )}
       </div>
       
       <div className="text-center">

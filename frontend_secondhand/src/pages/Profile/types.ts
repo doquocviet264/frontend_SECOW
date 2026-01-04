@@ -29,6 +29,7 @@ export type OrderStatus = "processing" | "shipping" | "completed" | "cancelled";
 
 export type Order = {
   id: string;
+  _id: string; // MongoDB _id để điều hướng đến trang chi tiết
   createdAt: string;
   status: OrderStatus;
   itemCount: number;

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { Order } from "../types";
 
 // Giả lập danh sách tabs trạng thái giống hình
@@ -29,8 +30,13 @@ type Props = {
 };
 
 export default function OrdersTab({ orders }: Props) {
+  const navigate = useNavigate();
   // Giả lập active tab đầu tiên
   const activeTab = "Tất cả"; 
+
+  const handleViewOrderDetail = (orderId: string) => {
+    navigate(`/order/${orderId}`);
+  };
 
   return (
     <div className="w-full bg-gray-50 dark:bg-gray-900/50 rounded-xl">
@@ -92,7 +98,10 @@ export default function OrdersTab({ orders }: Props) {
             </div>
 
             {/* Body: Product Info (Mô phỏng giống hình) */}
-            <div className="flex gap-4 mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 p-2 -mx-2 rounded transition-colors">
+            <div 
+              onClick={() => handleViewOrderDetail(o._id)}
+              className="flex gap-4 mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 p-2 -mx-2 rounded transition-colors"
+            >
               {/* Product Image Placeholder */}
               <div className="w-20 h-20 shrink-0 bg-gray-200 dark:bg-gray-700 rounded border border-gray-100 dark:border-gray-600 flex items-center justify-center">
                  <span className="material-symbols-outlined text-gray-400 text-3xl">image</span>
@@ -131,6 +140,12 @@ export default function OrdersTab({ orders }: Props) {
                 </div>
 
                 <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => handleViewOrderDetail(o._id)}
+                    className="flex-1 sm:flex-none px-6 py-2 rounded border border-emerald-500 text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                  >
+                    Xem chi tiết
+                  </button>
                   {o.status === 'completed' ? (
                      <>
                         <button className="flex-1 sm:flex-none px-6 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">

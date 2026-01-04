@@ -19,6 +19,7 @@ import ResetPasswordPage from "@/pages/Auth/ResetPassword";
 import SellerDashboardPage from "@/pages/SellerDashboard";
 import AdminDashboardPage from "@/pages/AdminDashboard";
 import SellerProductsPage from "@/pages/SellerDashboard/ProductsManagement";
+import SellerOrderManagement from "@/pages/SellerDashboard/OrderManagement";
 import StoreSettingsPage from "@/pages/SellerDashboard/StoreSettings";
 import CategoryManagementPage from "@/pages/AdminDashboard/CategoryManagement";
 import ProductApprovalPage from "@/pages/AdminDashboard/ProductApproval";
@@ -95,7 +96,14 @@ export default function AppRouter() {
             </RequireAuth>
           }
         />
-        <Route path="/order/:id" element={<OrderDetailPage />} />
+        <Route
+          path="/order/:id"
+          element={
+            <RequireAuth allow={["user", "seller", "admin"]}>
+              <OrderDetailPage />
+            </RequireAuth>
+          }
+        />
         <Route path="/seller-profile/:id" element={<SellerProfilePage />} />
         <Route
           path="/wishlist"
@@ -139,6 +147,14 @@ export default function AppRouter() {
           element={
             <RequireAuth allow={["seller", "admin"]}>
               <SellerProductsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/seller/orders"
+          element={
+            <RequireAuth allow={["seller", "admin"]}>
+              <SellerOrderManagement />
             </RequireAuth>
           }
         />

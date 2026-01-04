@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { OrderDetail } from "../types";
 
 type Props = {
@@ -5,6 +6,26 @@ type Props = {
 };
 
 const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫";
+
+function ProductImage({ src, alt }: { src: string; alt: string }) {
+  const [imageError, setImageError] = useState(false);
+  const hasValidImage = src && src !== "/placeholder-product.jpg" && !imageError;
+  
+  return (
+    <div className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 flex items-center justify-center">
+      {hasValidImage ? (
+        <img 
+          src={src} 
+          alt={alt} 
+          className="w-full h-full object-cover" 
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <span className="material-symbols-outlined text-gray-400 text-3xl">image</span>
+      )}
+    </div>
+  );
+}
 
 export default function OrderItems({ items }: Props) {
   return (
@@ -19,9 +40,7 @@ export default function OrderItems({ items }: Props) {
       <div className="space-y-6">
         {items.map((item) => (
           <div key={item.id} className="flex gap-4">
-            <div className="w-24 h-24 shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
-               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-            </div>
+            <ProductImage src={item.imageUrl || ""} alt={item.name} />
 
             <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
               <div>
@@ -29,18 +48,22 @@ export default function OrderItems({ items }: Props) {
                   {item.name}
                 </h4>
                 
-                <div className="flex flex-wrap gap-2 mt-2">
-                   {/* Variant Badge */}
-                   <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-gray-600">
-                      {item.variant}
-                   </span>
-                   {/* Extra Tags like "Do moi 95%" */}
-                   {item.tags?.map(tag => (
+                {(item.variant || (item.tags && item.tags.length > 0)) && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {/* Variant Badge */}
+                    {item.variant && (
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-gray-600">
+                        {item.variant}
+                      </span>
+                    )}
+                    {/* Extra Tags like "Do moi 95%" */}
+                    {item.tags?.map(tag => (
                       <span key={tag} className="inline-flex items-center px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-medium border border-blue-100 dark:border-blue-800">
                         {tag}
                       </span>
-                   ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between mt-2">

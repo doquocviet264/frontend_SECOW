@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import OrderHeader from "./components/OrderHeader";
 import ShippingStatus from "./components/ShippingStatus";
 import OrderItems from "./components/OrderItems";
@@ -11,42 +11,139 @@ import { orderService } from "@/services/orderService";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    const load = async () => {
-      if (!id) return;
+    const loadOrder = async () => {
+      if (!id) {
+        setError("Không tìm thấy ID đơn hàng");
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      
       try {
         const res = await orderService.getOrderById(id);
-        const o = res?.data?.order as any;
-        if (!o) return;
+        
+        if (!res?.success || !res?.data?.order) {
+          setError("Không tìm thấy đơn hàng");
+          setLoading(false);
+          return;
+        }
+        
+        const o = res.data.order as any;
+        
+        // Map items
         const items: OrderItem[] = (o.items || []).map((it: any) => ({
-          id: String(it._id),
+          id: String(it._id || it.product?._id || ""),
           name: it.productName || it.product?.title || "Sản phẩm",
-          variant: "",
+          variant: it.product?.condition ? `Tình trạng: ${it.product.condition}` : "",
           price: it.price || 0,
           quantity: it.quantity || 1,
-          imageUrl: it.productImage || it.product?.images?.[0] || "",
+          imageUrl: it.productImage || it.product?.images?.[0] || "/placeholder-product.jpg",
           tags: [],
         }));
-        const track: TrackingEvent[] = [
-          {
-            id: "created",
-            status: "Đặt hàng thành công",
-            date: new Date(o.createdAt).toLocaleDateString("vi-VN"),
-            time: new Date(o.createdAt).toLocaleTimeString("vi-VN"),
+        
+        // Build tracking events based on order status and timestamps
+        const tracking: TrackingEvent[] = [];
+        const createdAt = o.createdAt ? new Date(o.createdAt) : new Date();
+        
+        // Always add created event
+        tracking.push({
+          id: "created",
+          status: "Đặt hàng thành công",
+          date: createdAt.toLocaleDateString("vi-VN"),
+          time: createdAt.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }),
+          description: "",
+          isCurrent: o.status === "pending",
+        });
+        
+        // Add confirmed event if status is confirmed or beyond
+        if (["confirmed", "packaged", "shipped", "delivered"].includes(o.status)) {
+          const confirmedAt = o.updatedAt ? new Date(o.updatedAt) : createdAt;
+          tracking.push({
+            id: "confirmed",
+            status: "Đã xác nhận",
+            date: confirmedAt.toLocaleDateString("vi-VN"),
+            time: confirmedAt.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }),
+            description: "",
+            isCurrent: o.status === "confirmed",
+          });
+        }
+        
+        // Add packaged event if status is packaged or beyond
+        if (["packaged", "shipped", "delivered"].includes(o.status)) {
+          const packagedAt = o.updatedAt ? new Date(o.updatedAt) : createdAt;
+          tracking.push({
+            id: "packaged",
+            status: "Đã đóng gói",
+            date: packagedAt.toLocaleDateString("vi-VN"),
+            time: packagedAt.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }),
+            description: "",
+            isCurrent: o.status === "packaged",
+          });
+        }
+        
+        // Add shipped event if status is shipped or delivered
+        if (["shipped", "delivered"].includes(o.status)) {
+          const shippedAt = o.updatedAt ? new Date(o.updatedAt) : createdAt;
+          tracking.push({
+            id: "shipped",
+            status: "Đã gửi hàng",
+            date: shippedAt.toLocaleDateString("vi-VN"),
+            time: shippedAt.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }),
+            description: "",
+            isCurrent: o.status === "shipped",
+          });
+        }
+        
+        // Add delivered event if status is delivered
+        if (o.status === "delivered") {
+          const deliveredAt = o.deliveredAt ? new Date(o.deliveredAt) : (o.updatedAt ? new Date(o.updatedAt) : createdAt);
+          tracking.push({
+            id: "delivered",
+            status: "Đã giao hàng",
+            date: deliveredAt.toLocaleDateString("vi-VN"),
+            time: deliveredAt.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }),
             description: "",
             isCurrent: true,
-          },
-        ];
+          });
+        }
+        
+        // Map status to UI status
+        let uiStatus: OrderDetail["status"] = "placed";
+        if (o.status === "packaged") {
+          uiStatus = "packed";
+        } else if (o.status === "shipped") {
+          uiStatus = "shipping";
+        } else if (o.status === "delivered") {
+          uiStatus = "completed";
+        } else if (o.status === "cancelled" || o.status === "rejected") {
+          uiStatus = "cancelled";
+        }
+        
+        // Build shipping address string
+        const addressParts = [
+          o.shippingAddress?.address,
+          o.shippingAddress?.ward,
+          o.shippingAddress?.district,
+          o.shippingAddress?.city
+        ].filter(Boolean);
+        
         const ui: OrderDetail = {
-          id: String(o._id),
-          createdAt: new Date(o.createdAt).toLocaleString("vi-VN"),
-          status: o.status === "shipped" ? "shipping" : o.status === "delivered" ? "completed" : "placed",
+          id: String(o._id || o.orderNumber || id),
+          createdAt: createdAt.toLocaleString("vi-VN"),
+          status: uiStatus,
           shop: {
             id: String(o.seller?._id || ""),
             name: o.seller?.name || "Người bán",
-            avatarUrl: "",
+            avatarUrl: o.seller?.avatarUrl || "",
             rating: 5,
             reviewCount: 0,
           },
@@ -54,29 +151,62 @@ export default function OrderDetailPage() {
           shippingAddress: {
             name: o.shippingAddress?.fullName || "",
             phone: o.shippingAddress?.phone || "",
-            address: [o.shippingAddress?.address, o.shippingAddress?.ward, o.shippingAddress?.district, o.shippingAddress?.city].filter(Boolean).join(", "),
+            address: addressParts.length > 0 ? addressParts.join(", ") : "Chưa có địa chỉ",
           },
-          tracking: track,
+          tracking,
           payment: {
             subtotal: o.totalAmount || 0,
             shippingFee: 0,
             discount: 0,
             total: o.totalAmount || 0,
-            method: o.paymentMethod?.toUpperCase() || "COD",
+            method: o.paymentMethod === "cod" ? "COD" : o.paymentMethod === "bank_transfer" ? "CHUYỂN KHOẢN" : o.paymentMethod?.toUpperCase() || "COD",
           },
         };
+        
         setOrder(ui);
-      } catch {}
+      } catch (err: any) {
+        console.error("Error loading order:", err);
+        setError(err?.response?.data?.message || err?.message || "Có lỗi xảy ra khi tải đơn hàng");
+      } finally {
+        setLoading(false);
+      }
     };
-    load();
-  }, [id]);
+    
+    loadOrder();
+  }, [id, refreshKey]);
 
-  if (!order) {
+  const handleOrderUpdated = () => {
+    // Trigger reload by updating refreshKey
+    setRefreshKey(prev => prev + 1);
+  };
+
+  if (loading) {
     return (
       <PageLayout>
         <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500" />
+            <p className="text-gray-500">Đang tải thông tin đơn hàng...</p>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <PageLayout>
+        <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <span className="material-symbols-outlined text-6xl text-gray-400">error_outline</span>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Không tìm thấy đơn hàng</h2>
+            <p className="text-gray-500 text-center">{error || "Đơn hàng không tồn tại hoặc bạn không có quyền truy cập"}</p>
+            <button
+              onClick={() => navigate(-1)}
+              className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors"
+            >
+              Quay lại
+            </button>
           </div>
         </div>
       </PageLayout>
@@ -90,14 +220,14 @@ export default function OrderDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
-            <ShippingStatus tracking={order.tracking} />
+            <ShippingStatus tracking={order.tracking} orderStatus={order.status} />
             <OrderItems items={order.items} />
             <OrderAddress address={order.shippingAddress} />
           </div>
 
           <div className="lg:col-span-4">
             <div className="sticky top-6">
-              <OrderSidebar order={order} />
+              <OrderSidebar order={order} onOrderUpdated={handleOrderUpdated} />
             </div>
           </div>
         </div>
