@@ -5,6 +5,8 @@ import { storeService } from "@/services/storeService";
 import type { AuthUser } from "@/types/auth";
 import StorePendingModal from "@/components/StorePendingModal";
 import { useCart } from "@/store/cart";
+import { messageService } from "@/services/messageService";
+import { getSocket } from "@/config/socket";
 
 const NAV = [
   { label: "Trang chủ", href: "/" },
@@ -49,11 +51,115 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
   const isAuthenticated = authService.isAuthenticated();
   const user = authService.getCurrentUser() as AuthUser | null;
   const { cartCount } = useCart();
+  const [unread, setUnread] = useState(0);
+  const [showNotifMenu, setShowNotifMenu] = useState(false);
+  const [notifItems, setNotifItems] = useState<
+    Array<{ senderId: string; senderName: string; conversationId: string; count: number; lastAt: string }>
+  >([]);
+  const [notifUnread, setNotifUnread] = useState(0);
 
   // Đóng menu khi route thay đổi
   useEffect(() => {
     setShowUserMenu(false);
   }, [location.pathname]);
+
+  // Unread messages badge
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnread(0);
+      setNotifUnread(0);
+      setNotifItems([]);
+      return;
+    }
+    let mounted = true;
+    const loadUnread = async () => {
+      try {
+        const res = await messageService.getConversations();
+        const conversations = res.conversations || [];
+        const total = conversations.reduce((s: number, c: any) => s + (c.unreadCount || 0), 0);
+        if (mounted) {
+          setUnread(total);
+          // Khởi tạo danh sách thông báo từ các hội thoại đang có tin chưa đọc
+          const initNotifs = conversations
+            .filter((c: any) => (c.unreadCount || 0) > 0)
+            .map((c: any) => {
+              const other = (c.participants && c.participants[0]) || { _id: "", name: "Người dùng" };
+              return {
+                senderId: other._id || other.id,
+                senderName: other.name || "Người dùng",
+                conversationId: c.id,
+                count: c.unreadCount || 0,
+                lastAt: c.lastMessage?.createdAt || c.updatedAt || new Date().toISOString(),
+              };
+            });
+          setNotifItems(initNotifs);
+          // Badge hiển thị theo số dòng thông báo (số người gửi), không phải tổng tin nhắn
+          setNotifUnread(initNotifs.length);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    loadUnread();
+    const socket = getSocket();
+    const refresh = () => loadUnread();
+    const onNew = (payload: { conversationId: string; message: any }) => {
+      const msg = payload?.message;
+      if (!msg || !msg.sender) return;
+      // Chỉ tạo thông báo cho người nhận
+      const myId = user?.id;
+      const receiverId = (msg.receiver && (msg.receiver._id || msg.receiver.id)) || msg.receiver;
+      if (myId && receiverId && receiverId.toString() !== myId.toString()) {
+        return;
+      }
+      const senderId = msg.sender._id || msg.sender.id;
+      const existed = notifItems.some((i) => i.senderId === senderId);
+      setNotifItems((prev) => {
+        const idx = prev.findIndex((i) => i.senderId === senderId);
+        const item = {
+          senderId,
+          senderName: msg.sender.name || "Người dùng",
+          conversationId: payload.conversationId,
+          count: 1,
+          lastAt: msg.createdAt || new Date().toISOString(),
+        };
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = {
+            ...next[idx],
+            count: next[idx].count + 1,
+            lastAt: item.lastAt,
+            conversationId: item.conversationId,
+          };
+          return next;
+        }
+        return [item, ...prev].slice(0, 20);
+      });
+      // Tăng badge nếu là dòng thông báo mới (người gửi mới)
+      setNotifUnread((c) => c + (existed ? 0 : 1));
+      refresh();
+    };
+    socket.on("message:new", onNew);
+    socket.on("message:read", refresh);
+    socket.on("conversation:updated", refresh);
+    return () => {
+      mounted = false;
+      socket.off("message:new", onNew);
+      socket.off("message:read", refresh);
+      socket.off("conversation:updated", refresh);
+    };
+  }, [isAuthenticated]);
+
+  const timeAgo = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "vừa xong";
+    if (mins < 60) return `${mins} phút trước`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} giờ trước`;
+    const days = Math.floor(hours / 24);
+    return `${days} ngày trước`;
+  };
 
   const handleSellClick = async () => {
     if (!isAuthenticated) {
@@ -178,11 +284,78 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
                 )}
               </button>
 
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setShowNotifMenu((s) => !s);
+                    setNotifUnread(0); // reset unread on open
+                  }}
+                  className="hidden sm:flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors relative"
+                  title="Thông báo"
+                >
+                  <span className="material-symbols-outlined text-[20px]">notifications</span>
+                  {notifUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                      {notifUnread}
+                    </span>
+                  )}
+                </button>
+                {showNotifMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[var(--surface-dark)] rounded-lg shadow-lg border border-[var(--border-light)] dark:border-[var(--border-dark)] overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-[var(--border-light)] dark:border-[var(--border-dark)] flex items-center justify-between">
+                      <div className="font-semibold text-[var(--text-light)] dark:text-white">Thông báo</div>
+                      <button
+                        className="text-xs text-[var(--muted-green)] hover:text-[var(--color-primary)]"
+                        onClick={() => {
+                          setNotifItems([]);
+                          setNotifUnread(0);
+                        }}
+                      >
+                        Xóa tất cả
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifItems.length === 0 ? (
+                        <div className="px-4 py-6 text-sm text-gray-500">Chưa có thông báo</div>
+                      ) : (
+                        notifItems.map((n) => {
+                          const isSeller = user?.role === "seller";
+                          const roleLabel = isSeller ? "khách hàng" : "người bán";
+                          const countText = n.count > 1 ? `${n.count} tin nhắn mới` : "1 tin nhắn mới";
+                          const line = `Có ${countText} từ ${roleLabel} ${n.senderName}`;
+                          return (
+                            <button
+                              key={`${n.senderId}-${n.lastAt}`}
+                              onClick={() => {
+                                navigate(`/chat?with=${n.senderId}&name=${encodeURIComponent(n.senderName)}`);
+                                setShowNotifMenu(false);
+                              }}
+                              className="w-full text-left px-4 py-3 hover:bg-[var(--bg-light)] dark:hover:bg-[var(--bg-dark)] transition-colors"
+                            >
+                              <div className="text-sm text-[var(--text-light)] dark:text-white">
+                                {line}
+                              </div>
+                              <div className="text-xs text-[var(--muted-green)] mt-0.5">{timeAgo(n.lastAt)}</div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
-                className="hidden sm:flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors"
-                title="Thông báo"
+                onClick={() => navigate("/chat")}
+                className="flex size-10 items-center justify-center rounded-lg bg-[var(--border-light)] dark:bg-[var(--chip-dark)] text-[var(--text-light)] dark:text-white hover:bg-[color:rgba(19,236,91,0.2)] transition-colors relative"
+                title="Tin nhắn"
               >
-                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                <span className="material-symbols-outlined text-[20px]">forum</span>
+                {unread > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {unread}
+                  </span>
+                )}
               </button>
             </>
           )}

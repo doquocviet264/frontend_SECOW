@@ -2,6 +2,7 @@
   import { useNavigate } from "react-router-dom";
   import { useCart } from "@/store/cart";
   import { cartService } from "@/services/cartService";
+  import { authService } from "@/services/authService";
 
   type Props = {
     isApproved: boolean;
@@ -13,6 +14,9 @@
     oldPrice?: number;
     stock: number;
     productId: string;
+    sellerId?: string;
+    sellerName?: string;
+    productImage?: string;
   };
 
   const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";
@@ -27,6 +31,9 @@
     oldPrice,
     stock,
     productId,
+    sellerId,
+    sellerName,
+    productImage,
   }: Props) {
     const [qty, setQty] = useState(1);
     const { addToCart } = useCart();
@@ -138,6 +145,24 @@
               <button
                 type="button"
                 className="flex-1 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold h-10 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                onClick={() => {
+                  if (!authService.isAuthenticated()) {
+                    navigate("/auth/signin");
+                    return;
+                  }
+                  if (sellerId) {
+                    const q = new URLSearchParams();
+                    q.set("with", sellerId);
+                    if (sellerName) q.set("name", sellerName);
+                    q.set("productId", productId);
+                    q.set("productTitle", title);
+                    q.set("productPrice", String(price));
+                    if (productImage) q.set("productImage", productImage);
+                    navigate(`/chat?${q.toString()}`);
+                  } else {
+                    navigate("/chat");
+                  }
+                }}
               >
                 <span className="material-symbols-outlined text-[20px]">chat</span>
                 Chat với người bán
