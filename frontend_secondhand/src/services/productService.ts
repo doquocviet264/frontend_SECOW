@@ -39,6 +39,12 @@ export const productService = {
     return res.data;
   },
 
+  // Public: Lấy sản phẩm gợi ý
+  async getRecommendations(limit?: number): Promise<ApiResponse<{ recommendations: Array<{ id: string; title: string; imageUrl: string; price: number; oldPrice?: number }> }>> {
+    const res = await axios.get(`${PRODUCT_PREFIX}/recommendations`, { params: { limit } });
+    return res.data;
+  },
+
   async getSellerProducts(
     params: GetSellerProductsParams
   ): Promise<ApiResponse<{ products: Product[] }>> {

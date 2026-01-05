@@ -21,16 +21,6 @@ export default function ProductCard({ item, showBadge = true }: Props) {
           alt={item.title}
         />
 
-        <button
-          className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 dark:bg-black/50 hover:bg-white text-gray-500 hover:text-red-500 transition-colors"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // TODO: Handle wishlist toggle
-          }}
-        >
-          <span className="material-symbols-outlined text-[18px] block">favorite</span>
-        </button>
 
         {showBadge && item.badge ? (
           <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--color-primary)] text-[var(--text-light)]">

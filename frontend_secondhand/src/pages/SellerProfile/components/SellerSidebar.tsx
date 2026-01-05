@@ -1,10 +1,15 @@
+import { useNavigate } from "react-router-dom";
+import { authService } from "@/services/authService";
 import type { ShopProfile } from "../types";
 
 type Props = {
   shop: ShopProfile;
+  sellerId?: string;
+  sellerName?: string;
 };
 
-export default function SellerSidebar({ shop }: Props) {
+export default function SellerSidebar({ shop, sellerId, sellerName }: Props) {
+  const navigate = useNavigate();
   return (
     <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 h-fit sticky top-6">
       {/* 1. Avatar & Info */}
@@ -29,14 +34,26 @@ export default function SellerSidebar({ shop }: Props) {
       </div>
 
       {/* 2. Action Buttons */}
-      <div className="flex gap-3 mb-8">
-        <button className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95">
+      <div className="mb-8">
+        <button 
+          onClick={() => {
+            if (!authService.isAuthenticated()) {
+              navigate("/auth/signin");
+              return;
+            }
+            if (sellerId) {
+              const q = new URLSearchParams();
+              q.set("with", sellerId);
+              if (sellerName) q.set("name", sellerName);
+              navigate(`/chat?${q.toString()}`);
+            } else {
+              navigate("/chat");
+            }
+          }}
+          className="w-full h-10 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+        >
           <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
-          Chat
-        </button>
-        <button className="flex-1 h-10 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all">
-          <span className="material-symbols-outlined text-[18px]">person_add</span>
-          Follow
+          Chat với người bán
         </button>
       </div>
 
@@ -52,7 +69,7 @@ export default function SellerSidebar({ shop }: Props) {
           </div>
           <div className="text-right">
              <div className="font-bold text-gray-900 dark:text-white">{shop.stats.rating}/5.0</div>
-             <div className="text-[10px] text-gray-400">({shop.stats.reviewCount})</div>
+            <div className="text-[10px] text-gray-400">({shop.stats.reviewCount.toLocaleString('vi-VN')} lượt đánh giá)</div>
           </div>
         </div>
 

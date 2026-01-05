@@ -7,53 +7,14 @@ import Recommendations from "./components/Recommendations";
 import type { RecommendationItem, SellerCartGroup } from "./types";
 import PageLayout from "@/components/layout/PageLayout";
 import { cartService } from "@/services/cartService";
+import { productService } from "@/services/productService";
 import { useCart } from "@/store/cart";
 import axios from "@/config/axios";
 
-
-const RECS: RecommendationItem[] = [
-  {
-    id: "r1",
-    title: "Kính mát Rayban Aviator 80s",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBCUkmChGDCyzZS3LCEfH9Fk3jTe__VHqhWg4nKpb_NTLpJsk0_ssSKO81tGe1OG05TgDEgAegXm-ZOIF28kmXbjVaHXnlv6UvvtjYSiZk2Yh-MA-XRjHUR_a1EAPNbRUXYxgzQ_WVtp_IWrm2AI-oW1WvV_CM3sOzlYKxmQssZsYIQ4E0pTKVyYjlMBzbB1BRKtfOL9FenQ9wxWzt1WQcoSzrdEXOY_pGMKo49KhMqIRmMvJBI_DGG7uy0ibErLucB38HJMNAiD1AS",
-    price: 350000,
-    oldPrice: 600000,
-  },
-  {
-    id: "r2",
-    title: "Đầu đĩa than Sony cũ",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCFVOj33D7M7sJGE_yuP-LTzz2SCbY-tn0jkSs8PNZ55R0_mzEJDxRKpxPdAfdBuGbXZibEaIn329YGFxdm_6CLs62NDEZCtJRom9NXw8jo_hoa74ckrQTrLAWRYmH1GquwNtWZhsDcWmo58-IMBTkOcGlHHoDUZrwoX3T15Py-psthMOMssj-4vl6G6CQmjshoKrZ4CLiFGiuqDX9DDeviC6rFQsZbVvnO2bDWXJj-tZXglgCwgNX5A-ke9j1JPU4Y8eBZPVKiwXan",
-    price: 2100000,
-  },
-  {
-    id: "r3",
-    title: "Combo 5 sách văn học cổ điển",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuANBgTjSgJmHRipY7Tuz82A6nWhPpyEbpPj4kL9FumvF4CXdq_Mwh10nn6tcRWZid5LSzkjZ8CUEquNXXVZMW7fgEoyli3GFQ628eXJHIyCHSwsQSy9-1krDHTOlBn-LC6jvoQLiRcEi2JayQLAp1zs8o7z0YrWavfrR0yPzDBYkYml2Z1kAyJpPbK1FCJM-0DCWPMZajFZscRBYEeyXd82nsCV0INHxMcyGBwURQa1-9k2BQho4mEH__x-S7DWWQXzFqhEjpZAIavP",
-    price: 150000,
-    oldPrice: 250000,
-  },
-  {
-    id: "r4",
-    title: "Giày Nike Air Max 97 (Size 42)",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDa3lr6WRLfOwpdGrtYsL3aU5HGEvIldGKgOV2dr-EWdLKdo-GoMh-oAORYjK3XENSb2cMu4Z_qnCS5ZIC89xxn3USyDj2jDlmiO0cHREPvOT5D-uH8ymjH3ltT_CJBNExjVS1eftiMwX6JiIS5ndRUiqWB0S_UDBvymmlkMNnHYEiZ0C-dx4z8UulVLMnlATyx5VKK2Fa5Puh5F075ZZLzipW-UkmuRtxJz-hZz0y5I1WQ3wwmfj7etWc6TJosJrfMEO4f2lXIhPrd",
-    price: 950000,
-    oldPrice: 3000000,
-  },
-  {
-    id: "r5",
-    title: "Đồng hồ Seiko 5 Automatic",
-    imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBRTdA3GKcGcQjV8HX71os2mWqwOql1mJEg-9y7L2jlPMCjcw6Q13HPSGiKXV0nhPOqKPuAECT6uZYT4YhXs5f8OqSXcW3BuVaqrIHoOk55Q87JJGe3BphNqAsWdVVn579fAeBvgT5VMsBQpgoplsfayyV0SD84vnUzPyNkOTybqFHzUI1Vb1OCyr-ppZltqK7OKOTEq2suXZmW50EM_ITACZiTXWtUG0BPkbFjLSkVYP89aFEj1-lbbcSpbV04YXX9IE6Vmgdrd9El",
-    price: 1800000,
-  },
-];
-
 export default function CartPage() {
   const [groups, setGroups] = useState<SellerCartGroup[]>([]);
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const { cartCount, refreshCart } = useCart();
   const navigate = useNavigate();
 
@@ -117,8 +78,25 @@ export default function CartPage() {
     }
   };
 
+  const loadRecommendations = async () => {
+    setRecommendationsLoading(true);
+    try {
+      const res = await productService.getRecommendations(5);
+      if (res.success && res.data?.recommendations) {
+        setRecommendations(res.data.recommendations);
+      }
+    } catch (error) {
+      console.error("Error loading recommendations:", error);
+      // Nếu có lỗi, để mảng rỗng
+      setRecommendations([]);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadCart();
+    loadRecommendations();
   }, [cartCount]);
 
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
@@ -272,7 +250,7 @@ export default function CartPage() {
           </div>
         )}
 
-        <Recommendations items={RECS} />
+        <Recommendations items={recommendations} loading={recommendationsLoading} />
       </div>
     </PageLayout>
   );

@@ -21,7 +21,8 @@ export type OrderItem = {
 };
 
 export type ShopInfo = {
-  id: string;
+  id: string; // sellerId
+  storeId?: string; // storeId for navigation
   name: string;
   avatarUrl: string;
   rating: number;

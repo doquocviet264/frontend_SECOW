@@ -11,7 +11,6 @@ import { getSocket } from "@/config/socket";
 const NAV = [
   { label: "Trang chủ", href: "/" },
   { label: "Sản phẩm", href: "/products" },
-  { label: "Cộng đồng", href: "/about" },
 ];
 
 function Logo() {

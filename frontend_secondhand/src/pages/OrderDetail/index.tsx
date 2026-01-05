@@ -8,6 +8,7 @@ import OrderSidebar from "./components/OrderSidebar";
 import type { OrderDetail, OrderItem, TrackingEvent } from "./types";
 import PageLayout from "@/components/layout/PageLayout";
 import { orderService } from "@/services/orderService";
+import { storeService } from "@/services/storeService";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -143,17 +144,39 @@ export default function OrderDetailPage() {
           o.shippingAddress?.city
         ].filter(Boolean);
         
+        // Get store info to get real rating and reviewCount
+        let storeId: string | undefined = undefined;
+        let storeRating = 5;
+        let storeReviewCount = 0;
+        const sellerId = String(o.seller?._id || "");
+        
+        if (sellerId) {
+          try {
+            const storeResponse = await storeService.getStoreBySellerId(sellerId);
+            if (storeResponse.success && storeResponse.data?.store) {
+              const store = storeResponse.data.store;
+              storeId = store._id;
+              storeRating = store.rating?.average || 5;
+              storeReviewCount = store.rating?.count || 0;
+            }
+          } catch (err) {
+            console.error("Error fetching store info:", err);
+            // Use default values if store fetch fails
+          }
+        }
+
         const ui: OrderDetail = {
           id: String(o._id || o.orderNumber || id),
           createdAt: createdAt.toLocaleString("vi-VN"),
           status: uiStatus,
           backendStatus: o.status, // Store backend status for cancel check
           shop: {
-            id: String(o.seller?._id || ""),
+            id: sellerId,
+            storeId: storeId,
             name: o.seller?.name || "Người bán",
             avatarUrl: o.seller?.avatarUrl || "",
-            rating: 5,
-            reviewCount: 0,
+            rating: storeRating,
+            reviewCount: storeReviewCount,
           },
           items,
           shippingAddress: {

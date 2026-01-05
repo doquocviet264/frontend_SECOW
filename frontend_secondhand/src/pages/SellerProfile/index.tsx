@@ -19,6 +19,8 @@ export default function SellerProfilePage() {
   const [bestSellingProducts, setBestSellingProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sellerId, setSellerId] = useState<string | undefined>(undefined);
+  const [sellerName, setSellerName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const fetchShopData = async () => {
@@ -48,6 +50,15 @@ export default function SellerProfilePage() {
 
         const store: Store = storeResponse.data.store;
 
+        // Get sellerId and sellerName
+        const currentSellerId = typeof store.seller === "string" ? store.seller : store.seller._id;
+        const currentSellerName = typeof store.seller === "string" 
+          ? undefined 
+          : (store.seller.name || store.storeName);
+        
+        setSellerId(currentSellerId);
+        setSellerName(currentSellerName);
+
         // Map Store to ShopProfile
         const shopProfile: ShopProfile = {
           id: store._id,
@@ -72,7 +83,6 @@ export default function SellerProfilePage() {
         };
 
         // Fetch ALL products by seller - load all pages
-        const sellerId = typeof store.seller === "string" ? store.seller : store.seller._id;
         let allProducts: Product[] = [];
         let page = 1;
         const limit = 100; // Load 100 products per page
@@ -81,7 +91,7 @@ export default function SellerProfilePage() {
         while (hasMore) {
           const productsResponse = await axios.get(`/v1/products/`, {
             params: {
-              sellerId,
+              sellerId: currentSellerId,
               status: "active",
               page,
               limit,
@@ -150,7 +160,7 @@ export default function SellerProfilePage() {
         // Fetch 10 newest products
         const newestResponse = await axios.get(`/v1/products/`, {
           params: {
-            sellerId,
+            sellerId: currentSellerId,
             status: "active",
             page: 1,
             limit: 10,
@@ -167,7 +177,7 @@ export default function SellerProfilePage() {
         // Fetch 10 best-selling products (sorted by views)
         const bestSellingResponse = await axios.get(`/v1/products/`, {
           params: {
-            sellerId,
+            sellerId: currentSellerId,
             status: "active",
             page: 1,
             limit: 10,
@@ -264,7 +274,7 @@ export default function SellerProfilePage() {
           
           {/* Left Sidebar (1 column) */}
           <div className="lg:col-span-1">
-            <SellerSidebar shop={shop} />
+            <SellerSidebar shop={shop} sellerId={sellerId} sellerName={sellerName} />
           </div>
 
           {/* Main Content (3 columns) */}

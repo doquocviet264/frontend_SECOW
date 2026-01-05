@@ -9,7 +9,7 @@ export default function PageLayout({ children }: Props) {
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden">
       <Header />
-      <main className="flex flex-col items-center w-full">{children}</main>
+      <main className="flex flex-col items-center w-full flex-1">{children}</main>
       <Footer />
     </div>
   );
