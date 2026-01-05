@@ -159,19 +159,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
               <span className="hidden sm:inline">Quay về trang chủ</span>
             </Link>
           </div>
-          <Link
-            to="/chat"
-            className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            title="Tin nhắn"
-          >
-            <span className="material-symbols-outlined text-[20px]">forum</span>
-            <span className="hidden sm:inline">Tin nhắn</span>
-            {unread > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
-                {unread}
-              </span>
-            )}
-          </Link>
+          
         </div>
 
         {/* Content */}
