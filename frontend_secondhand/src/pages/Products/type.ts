@@ -29,4 +29,6 @@ export interface FilterState {
   locations: string[];
   conditions: string[];
   priceRange: { min: number; max: number };
+  selectedCity?: string;
+  selectedDistrict?: string;
 }

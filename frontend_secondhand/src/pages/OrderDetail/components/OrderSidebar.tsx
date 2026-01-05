@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { OrderDetail } from "../types";
 import { orderService } from "@/services/orderService";
+import { useNavigate } from "react-router-dom";
+import { authService } from "@/services/authService";
+import { storeService } from "@/services/storeService";
 
 type Props = {
   order: OrderDetail;
@@ -11,11 +14,13 @@ const formatVND = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "₫
 
 export default function OrderSidebar({ order, onOrderUpdated }: Props) {
   const { shop, payment } = order;
+  const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [loadingStoreId, setLoadingStoreId] = useState(false);
 
   // Chỉ hiển thị nút khi đơn hàng đã được gửi (shipping) và chưa hoàn thành
   // Note: order.status là UI status ("shipping" = backend "shipped", "completed" = backend "delivered")
@@ -122,19 +127,62 @@ export default function OrderSidebar({ order, onOrderUpdated }: Props) {
               <h4 className="font-bold text-gray-900 dark:text-white text-sm">{shop.name}</h4>
               <div className="flex items-center gap-1 text-xs text-gray-500">
                  <span className="material-symbols-outlined text-[14px] text-amber-400 filled">star</span>
-                 <span className="font-semibold text-gray-700 dark:text-gray-300">{shop.rating}</span>
-                 <span>({shop.reviewCount} đánh giá)</span>
+                 <span className="font-semibold text-gray-700 dark:text-gray-300">{shop.rating.toFixed(1)}</span>
+                 <span>({shop.reviewCount.toLocaleString('vi-VN')} lượt đánh giá)</span>
               </div>
            </div>
         </div>
         
         <div className="flex gap-2">
-           <button className="flex-1 h-9 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center justify-center gap-2 transition-colors">
+           <button
+             onClick={() => {
+               if (!authService.isAuthenticated()) {
+                 navigate("/auth/signin");
+                 return;
+               }
+               const q = new URLSearchParams();
+               q.set("with", shop.id);
+               if (shop.name) q.set("name", shop.name);
+               navigate(`/chat?${q.toString()}`);
+             }}
+             className="flex-1 h-9 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center justify-center gap-2 transition-colors"
+           >
               <span className="material-symbols-outlined text-[18px]">chat</span>
               Chat ngay
            </button>
-           <button className="h-9 w-9 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-              <span className="material-symbols-outlined text-[18px] text-gray-500">storefront</span>
+           <button 
+             onClick={async () => {
+               if (shop.storeId) {
+                 // If we already have storeId, navigate directly
+                 navigate(`/seller-profile/${shop.storeId}`);
+               } else if (shop.id) {
+                 // If no storeId, try to get it from sellerId
+                 if (loadingStoreId) return;
+                 try {
+                   setLoadingStoreId(true);
+                   const storeResponse = await storeService.getStoreBySellerId(shop.id);
+                   if (storeResponse.success && storeResponse.data?.store?._id) {
+                     navigate(`/seller-profile/${storeResponse.data.store._id}`);
+                   } else {
+                     // Fallback: navigate with sellerId
+                     navigate(`/seller-profile/${shop.id}`);
+                   }
+                 } catch (err) {
+                   console.error("Error fetching store:", err);
+                   // Fallback: navigate with sellerId
+                   navigate(`/seller-profile/${shop.id}`);
+                 } finally {
+                   setLoadingStoreId(false);
+                 }
+               }
+             }}
+             disabled={loadingStoreId}
+             className="h-9 w-9 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+             title="Xem Shop"
+           >
+              <span className={`material-symbols-outlined text-[18px] text-gray-500 ${loadingStoreId ? "animate-spin" : ""}`}>
+                {loadingStoreId ? "sync" : "storefront"}
+              </span>
            </button>
         </div>
       </div>

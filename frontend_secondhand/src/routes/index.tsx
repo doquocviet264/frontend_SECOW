@@ -2,7 +2,6 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import HomePage from "@/pages/Home";
-import AboutPage from "@/pages/About";
 import ProductPage from "@/pages/Products";
 import ProductDetailPage from "@/pages/ProductDetail";
 import CartPage from "@/pages/Cart";
@@ -10,7 +9,6 @@ import CheckoutPage from "@/pages/Checkout";
 import ProfilePage from "@/pages/Profile";
 import OrderDetailPage from "@/pages/OrderDetail";
 import SellerProfilePage from "@/pages/SellerProfile";
-import WishlistPage from "@/pages/Wishlist";
 import BecomeSellerPage from "@/pages/Become-Seller";
 import ChatPage from "@/pages/Chat";
 import SignInPage from "@/pages/Auth/SignIn";
@@ -70,7 +68,6 @@ export default function AppRouter() {
       <Routes>
         {/* PUBLIC */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<AboutPage />} />
         <Route path="/products" element={<ProductPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route
@@ -106,14 +103,6 @@ export default function AppRouter() {
           }
         />
         <Route path="/seller-profile/:id" element={<SellerProfilePage />} />
-        <Route
-          path="/wishlist"
-          element={
-            <RequireAuth allow={["user", "seller", "admin"]}>
-              <WishlistPage />
-            </RequireAuth>
-          }
-        />
         <Route path="/become-seller" element={<BecomeSellerPage />} />
         <Route
           path="/chat"

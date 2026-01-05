@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import type { Address, Order, ProfileTabKey, UserProfile, ActivityItem } from "./types";
+import type { Address, ProfileTabKey, UserProfile } from "./types";
 import ProfileSidebar from "./components/ProfileSidebar";
 import ProfileHeaderCard from "./components/ProfileHeaderCard";
 import OverviewTab from "./components/OverviewTab";
@@ -8,37 +8,39 @@ import AddressesTab from "./components/AddressesTab";
 import OrdersTab from "./components/OrdersTab";
 import PageLayout from "@/components/layout/PageLayout";
 import { authService } from "@/services/authService";
-import { orderService, type Order as ApiOrder } from "@/services/orderService";
+import { orderService } from "@/services/orderService";
 import { userService } from "@/services/userService";
+import { storeService } from "@/services/storeService";
+import { reviewService } from "@/services/reviewService";
+import { productService } from "@/services/productService";
 
 export default function ProfilePage() {
   const [active, setActive] = useState<ProfileTabKey>("overview");
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [userRole, setUserRole] = useState<string>("user");
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selling, setSelling] = useState(0);
+  const [newProductsThisWeek, setNewProductsThisWeek] = useState(0);
+  const [delivering, setDelivering] = useState(0);
+  const [rating, setRating] = useState<{
+    score: number;
+    total: number;
+    bars: { star: number; percent: number }[];
+  }>({
+    score: 0,
+    total: 0,
+    bars: [
+      { star: 5, percent: 0 },
+      { star: 4, percent: 0 },
+      { star: 3, percent: 0 },
+      { star: 2, percent: 0 },
+      { star: 1, percent: 0 },
+    ],
+  });
 
-  // Map API order status to component order status
-  const mapOrderStatus = (status: ApiOrder["status"]): Order["status"] => {
-    switch (status) {
-      case "pending":
-      case "confirmed":
-      case "packaged":
-        return "processing";
-      case "shipped":
-        return "shipping";
-      case "delivered":
-        return "completed";
-      case "cancelled":
-      case "rejected":
-        return "cancelled";
-      default:
-        return "processing";
-    }
-  };
-
-  // Fetch user data and orders
+  // Fetch user data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -47,8 +49,10 @@ export default function ProfilePage() {
 
         // Fetch user profile
         const userResponse = await authService.getMe();
+        let userId: string | null = null;
         if (userResponse.success && userResponse.data?.user) {
           const apiUser = userResponse.data.user as any;
+          userId = apiUser._id;
           const createdAt = apiUser.createdAt || apiUser.created_at;
           const joinedYear = createdAt 
             ? new Date(createdAt).getFullYear() 
@@ -63,6 +67,7 @@ export default function ProfilePage() {
             avatarUrl: apiUser.avatar || "",
           };
           setUser(userProfile);
+          setUserRole(apiUser.role || "user");
         }
 
         // Fetch addresses from new API
@@ -94,39 +99,121 @@ export default function ProfilePage() {
           setAddresses(mappedAddresses);
         }
 
-        // Fetch orders for activities (only recent ones)
-        const ordersResponse = await orderService.getMyOrders({ limit: 5 });
-        if (ordersResponse.success && ordersResponse.data?.orders) {
-          // Generate activities from recent orders
-          const mappedActivities: ActivityItem[] = ordersResponse.data.orders.map((apiOrder, index) => {
-            const firstItem = apiOrder.items[0];
-            const orderStatus = mapOrderStatus(apiOrder.status);
-            return {
-              id: `ac${index + 1}`,
-              title: firstItem?.productName || `Đơn hàng ${apiOrder.orderNumber}`,
-              subtitle:
-                orderStatus === "completed"
-                  ? "Đã giao hàng thành công"
-                  : orderStatus === "shipping"
-                  ? "Đang vận chuyển"
-                  : "Đang chờ xử lý",
-              amount: apiOrder.totalAmount,
-              badgeText:
-                orderStatus === "completed"
-                  ? "Hoàn thành"
-                  : orderStatus === "shipping"
-                  ? "Đang giao"
-                  : "Chờ xử lý",
-              badgeTone:
-                orderStatus === "completed"
-                  ? "green"
-                  : orderStatus === "shipping"
-                  ? "blue"
-                  : "yellow",
-              imageUrl: firstItem?.productImage,
-            };
-          });
-          setActivities(mappedActivities);
+        // Fetch delivering orders count
+        try {
+          const ordersResponse = await orderService.getMyOrders({ limit: 100 });
+          if (ordersResponse.success && ordersResponse.data?.orders) {
+            const deliveringCount = ordersResponse.data.orders.filter(
+              (order: any) => order.status === "shipped"
+            ).length;
+            setDelivering(deliveringCount);
+          }
+        } catch (orderErr) {
+          console.error("Error fetching orders:", orderErr);
+        }
+
+        // Fetch new products this week if user is seller
+        if (userId) {
+          try {
+            // Calculate start of this week (Monday)
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const productsResponse = await productService.getSellerProducts({
+              limit: 1000, // Get all products to count
+              page: 1,
+            });
+
+            if (productsResponse.success && productsResponse.data?.products) {
+              const products = productsResponse.data.products;
+              const newProductsCount = products.filter((product: any) => {
+                const createdAt = new Date(product.createdAt || product.created_at);
+                return createdAt >= startOfWeek;
+              }).length;
+              setNewProductsThisWeek(newProductsCount);
+            }
+          } catch (productErr) {
+            console.error("Error fetching new products:", productErr);
+          }
+        }
+
+        // Fetch store stats if user is seller
+        try {
+          const storeStatsResponse = await storeService.getStoreStats();
+          if (storeStatsResponse.success && storeStatsResponse.data?.stats) {
+            const stats = storeStatsResponse.data.stats;
+            // Set selling count
+            setSelling(stats.products?.active || 0);
+
+            // Set rating from store stats
+            if (stats.rating && userId) {
+              const avgRating = stats.rating.average || 0;
+              const totalReviews = stats.rating.count || 0;
+
+              // Fetch reviews to calculate rating bars
+              try {
+                const reviewsResponse = await reviewService.getSellerReviews(userId, { limit: 100 });
+                
+                if (reviewsResponse.success && reviewsResponse.data?.reviews) {
+                  const reviews = reviewsResponse.data.reviews;
+                  const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+                  
+                  reviews.forEach((review: any) => {
+                    const ratingValue = review.rating;
+                    if (ratingValue >= 1 && ratingValue <= 5) {
+                      ratingCounts[ratingValue as keyof typeof ratingCounts]++;
+                    }
+                  });
+
+                  const bars = [5, 4, 3, 2, 1].map((star) => ({
+                    star,
+                    percent: totalReviews > 0 ? Math.round((ratingCounts[star as keyof typeof ratingCounts] / totalReviews) * 100) : 0,
+                  }));
+
+                  setRating({
+                    score: avgRating,
+                    total: totalReviews,
+                    bars,
+                  });
+                } else {
+                  // Fallback: use store rating without bars detail
+                  setRating({
+                    score: avgRating,
+                    total: totalReviews,
+                    bars: [
+                      { star: 5, percent: 0 },
+                      { star: 4, percent: 0 },
+                      { star: 3, percent: 0 },
+                      { star: 2, percent: 0 },
+                      { star: 1, percent: 0 },
+                    ],
+                  });
+                }
+              } catch (reviewErr) {
+                console.error("Error fetching reviews:", reviewErr);
+                // Fallback: use store rating without bars detail
+                setRating({
+                  score: avgRating,
+                  total: totalReviews,
+                  bars: [
+                    { star: 5, percent: 0 },
+                    { star: 4, percent: 0 },
+                    { star: 3, percent: 0 },
+                    { star: 2, percent: 0 },
+                    { star: 1, percent: 0 },
+                  ],
+                });
+              }
+            }
+          }
+        } catch (storeErr: any) {
+          // User is not a seller or store doesn't exist - that's okay
+          // Keep default values (selling = 0, rating = default)
+          console.log("User is not a seller or store not found:", storeErr?.response?.status);
         }
       } catch (err: any) {
         setError(err?.response?.data?.message || "Có lỗi xảy ra khi tải dữ liệu");
@@ -140,12 +227,8 @@ export default function ProfilePage() {
   }, []);
 
   const stats = useMemo(() => {
-    // Stats will be calculated from activities or fetched separately
-    const delivering = activities.filter((a) => a.badgeTone === "blue").length;
-    const selling = 0; // TODO: Fetch from seller API if user is seller
-    const walletVnd = 0; // TODO: Fetch from wallet/transaction API
-    return { delivering, selling, walletVnd };
-  }, [activities]);
+    return { delivering, selling, newProductsThisWeek };
+  }, [delivering, selling, newProductsThisWeek]);
 
   const handleLogout = () => {
     authService.logout();
@@ -217,18 +300,9 @@ export default function ProfilePage() {
             {active === "overview" ? (
               <OverviewTab
                 stats={stats}
-                rating={{
-                  score: 4.8,
-                  total: 125,
-                  bars: [
-                    { star: 5, percent: 77 },
-                    { star: 4, percent: 15 },
-                    { star: 3, percent: 5 },
-                    { star: 2, percent: 1 },
-                    { star: 1, percent: 2 },
-                  ],
-                }}
-                activities={activities}
+                rating={rating}
+                userRole={userRole}
+                onTabChange={setActive}
               />
             ) : null}
 

@@ -28,6 +28,8 @@ export interface IProductDetail {
 	status: string
 	views: number
 	sku: string
+	size?: string | number
+	brand?: string
 	createdAt: string
 	updatedAt: string
 }

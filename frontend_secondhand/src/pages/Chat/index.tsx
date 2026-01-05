@@ -96,12 +96,6 @@ export default function ChatPage() {
       // ignore parse errors
     }
   }, [convData?.conversations, targetUserId, currentUser?.id]);
-
-  // Auto-scroll to bottom when messages change
-  React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgData?.messages?.length, conversationId]);
-
   // Persist last active conversation
   React.useEffect(() => {
     if (!activeConversation || !currentUser?.id) return;
@@ -205,9 +199,9 @@ export default function ChatPage() {
 
   return (
     <PageLayout>
-    <div className="mx-auto max-w-[1800px] 2xl:max-w-[1920px] p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="mx-auto max-w-[1800px] 2xl:max-w-[1920px] p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 w-full flex-1">
       {/* Sidebar */}
-      <div className="border rounded-xl h-[82vh] overflow-hidden bg-white">
+      <div className="border rounded-xl h-full overflow-hidden bg-white">
         <div className="p-4 border-b flex items-center gap-2">
           <span className="material-symbols-outlined text-primary">forum</span>
           <div className="font-semibold">Cuộc trò chuyện</div>
@@ -223,7 +217,7 @@ export default function ChatPage() {
             />
           </div>
         </div>
-        <div className="overflow-y-auto h-[calc(82vh-96px)]">
+        <div className="overflow-y-auto flex-1">
           {filteredConversations.map((c) => {
             const other = c.participants[0];
             const selected = activeConversation?.id === c.id;
@@ -257,7 +251,7 @@ export default function ChatPage() {
       </div>
 
       {/* Chat panel */}
-      <div className="lg:col-span-2 border rounded-xl h-[82vh] flex flex-col bg-white">
+      <div className="lg:col-span-2 border rounded-xl h-full flex flex-col bg-white">
         {/* Header */}
         <div className="p-4 border-b flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">

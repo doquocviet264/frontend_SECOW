@@ -4,9 +4,10 @@ type Props = {
   hint?: string;
   icon: string;
   tone?: "green" | "orange" | "blue";
+  onClick?: () => void;
 };
 
-export default function StatCard({ title, value, hint, icon, tone = "green" }: Props) {
+export default function StatCard({ title, value, hint, icon, tone = "green", onClick }: Props) {
   // Định nghĩa màu sắc cho từng tone
   const colorStyles = {
     green: {
@@ -29,7 +30,10 @@ export default function StatCard({ title, value, hint, icon, tone = "green" }: P
   const currentStyle = colorStyles[tone];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] dark:shadow-none border border-gray-100 dark:border-gray-700 transition-all hover:-translate-y-1 duration-200">
+    <div 
+      className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] dark:shadow-none border border-gray-100 dark:border-gray-700 transition-all hover:-translate-y-1 duration-200 ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex justify-between items-start">
         {/* Phần nội dung bên trái */}
         <div>

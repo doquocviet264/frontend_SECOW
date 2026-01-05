@@ -7,32 +7,14 @@ import PageLayout from '@/components/layout/PageLayout'
 
 // 1. Import Hook thay vì gọi hàm API trực tiếp
 import { useProductRequest } from './hooks/UseProductRequest' // Sửa đường dẫn nếu file hook nằm ở folder khác (vd: ./hooks/UseProductRequest)
-
-const CATEGORY_TREE: CategoryModel[] = [
-	{
-		id: 'phones',
-		name: 'Điện thoại',
-		count: 120,
-		children: [
-			{ id: 'ios', name: 'iPhone (iOS)', count: 80 },
-			{ id: 'android', name: 'Android', count: 40 }
-		]
-	},
-	{
-		id: 'laptops',
-		name: 'Máy tính xách tay',
-		count: 50,
-		children: [
-			{ id: 'laptop_gaming', name: 'Gaming', count: 20 },
-			{ id: 'laptop_office', name: 'Văn phòng', count: 30 }
-		]
-	}
-]
+import { useCategories } from './hooks/useCategories'
 
 export default function ProductListingPage() {
 	// --- SỬ DỤNG REACT QUERY HOOK ---
 	// data: đổi tên thành products, gán mặc định là [] nếu data chưa về (undefined)
 	const { data: products = [], isLoading, isError } = useProductRequest()
+	// Load danh mục từ API
+	const { data: categories = [], isLoading: isLoadingCategories } = useCategories()
 	// --------------------------------
 
 	const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -44,7 +26,9 @@ export default function ProductListingPage() {
 		categoryIds: [],
 		locations: [],
 		conditions: [],
-		priceRange: { min: 0, max: 50000000 }
+		priceRange: { min: 0, max: 50000000 },
+		selectedCity: '',
+		selectedDistrict: ''
 	})
 
 	// ĐÃ XÓA useEffect và fetchData thủ công ở đây
@@ -54,7 +38,9 @@ export default function ProductListingPage() {
 			categoryIds: [],
 			locations: [],
 			conditions: [],
-			priceRange: { min: 0, max: 50000000 }
+			priceRange: { min: 0, max: 50000000 },
+			selectedCity: '',
+			selectedDistrict: ''
 		})
 		setCurrentPage(1)
 	}
@@ -72,34 +58,120 @@ export default function ProductListingPage() {
 		}).format(price)
 	}
 
+	// Helper function để normalize tên tỉnh/thành phố và quận/huyện để so sánh
+	const normalizeLocationName = (name: string): string => {
+		if (!name) return ''
+		return name
+			.toLowerCase()
+			.trim()
+			// Loại bỏ các ký tự đặc biệt và khoảng trắng thừa
+			.replace(/[.,\-_]/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim()
+			// Chuẩn hóa một số tên phổ biến
+			.replace(/thành phố\s*/gi, '')
+			.replace(/tp\s*/gi, '')
+			.replace(/tỉnh\s*/gi, '')
+			.replace(/hồ chí minh/gi, 'ho chi minh')
+			.replace(/hà nội/gi, 'ha noi')
+			.replace(/đà nẵng/gi, 'da nang')
+	}
+
+	// Helper function để kiểm tra xem hai tên location có match không
+	const isLocationMatch = (name1: string, name2: string): boolean => {
+		if (!name1 || !name2) return false
+		const normalized1 = normalizeLocationName(name1)
+		const normalized2 = normalizeLocationName(name2)
+		
+		// So sánh chính xác sau khi normalize
+		if (normalized1 === normalized2) return true
+		
+		// So sánh một trong hai chứa cái kia
+		if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) return true
+		
+		return false
+	}
+
 	const filteredData = useMemo(() => {
-		// Map dữ liệu từ API sang Model hiển thị
-		const mappedProducts: ProductModel[] = products.map((p: any) => ({
-			id: p.id,
-			title: p.title,
-			price: p.price,
-			priceText: p.priceText || formatPrice(p.price),
-			imageUrl: p.imageUrl || (p.images && p.images[0]) || 'https://placehold.co/400x300',
-			condition: p.condition || 'Tốt',
-			conditionColor: p.conditionColor || 'blue',
-			sellerName: p.sellerName || 'Unknown',
-			sellerAvatarUrl: p.sellerAvatarUrl,
-			location: typeof p.location === 'string' ? p.location : (p.location?.city || ''),
-			categoryId: p.categoryId || '',
-			timeAgo: p.timeAgo || '',
-			photosCount: p.images?.length || 0,
-			isLiked: p.isLiked || false
-		}))
+		// Map dữ liệu từ API sang Model hiển thị, giữ thông tin location gốc để lọc
+		const mappedProducts = products.map((p: any) => {
+			const locationData = typeof p.location === 'object' ? p.location : null
+			const locationString = typeof p.location === 'string' ? p.location : (p.location?.city || '')
+			
+			return {
+				product: {
+					id: p.id,
+					title: p.title,
+					price: p.price,
+					priceText: p.priceText || formatPrice(p.price),
+					imageUrl: p.imageUrl || (p.images && p.images[0]) || 'https://placehold.co/400x300',
+					condition: p.condition || 'Tốt',
+					conditionColor: p.conditionColor || 'blue',
+					sellerName: p.sellerName || 'Unknown',
+					sellerAvatarUrl: p.sellerAvatarUrl,
+					location: locationString,
+					categoryId: p.categoryId || '',
+					timeAgo: p.timeAgo || '',
+					photosCount: p.images?.length || 0,
+					isLiked: p.isLiked || false
+				} as ProductModel,
+				locationData, // Giữ thông tin location đầy đủ để lọc chính xác
+				locationString
+			}
+		})
 
-		let res = [...mappedProducts]
-
+		// Lọc theo categoryIds trước
+		let filteredByCategory = mappedProducts
 		if (filters.categoryIds.length > 0) {
-			res = res.filter((p) => filters.categoryIds.includes(p.categoryId))
+			filteredByCategory = mappedProducts.filter((item) => 
+				filters.categoryIds.includes(item.product.categoryId)
+			)
 		}
 
-		if (filters.locations.length > 0) {
-			res = res.filter((p) => filters.locations.includes(p.location))
+		// Cải thiện lọc khu vực: kiểm tra cả city và district với normalize
+		let filteredByLocation = filteredByCategory
+		if (filters.locations.length > 0 || filters.selectedCity) {
+			filteredByLocation = filteredByCategory.filter((item) => {
+				const { locationData, locationString } = item
+				
+				// Nếu có selectedCity và selectedDistrict
+				if (filters.selectedCity && filters.selectedDistrict) {
+					const cityMatch = locationData
+						? isLocationMatch(locationData.city || '', filters.selectedCity)
+						: isLocationMatch(locationString || '', filters.selectedCity)
+					
+					const districtMatch = locationData
+						? isLocationMatch(locationData.district || '', filters.selectedDistrict)
+						: isLocationMatch(locationString || '', filters.selectedDistrict)
+					
+					return cityMatch && districtMatch
+				}
+				
+				// Nếu chỉ có selectedCity
+				if (filters.selectedCity) {
+					const cityMatch = locationData
+						? isLocationMatch(locationData.city || '', filters.selectedCity)
+						: isLocationMatch(locationString || '', filters.selectedCity)
+					return cityMatch
+				}
+				
+				// Lọc theo locations array (backward compatibility)
+				if (filters.locations.length > 0) {
+					return filters.locations.some(loc => {
+						if (locationData) {
+							return isLocationMatch(locationData.city || '', loc) ||
+								   isLocationMatch(locationData.district || '', loc) ||
+								   isLocationMatch(locationString || '', loc)
+						}
+						return isLocationMatch(locationString || '', loc)
+					})
+				}
+				
+				return true
+			})
 		}
+
+		let res = filteredByLocation.map(item => item.product)
 
 		res = res.filter(
 			(p) =>
@@ -141,9 +213,10 @@ export default function ProductListingPage() {
 						{/* SIDEBAR */}
 						<FiltersSidebar
 							filters={filters}
-							categories={CATEGORY_TREE}
+							categories={categories}
 							onFilterChange={updateFilters}
 							onClearFilters={clearFilters}
+							isLoadingCategories={isLoadingCategories}
 						/>
 
 						<div className="flex-1 min-w-0">

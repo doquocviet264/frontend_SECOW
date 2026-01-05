@@ -57,8 +57,6 @@ export default function SellerCard({ seller, storeId }: Props) {
         </div>
 
         <div className="flex items-center gap-3 text-xs text-gray-400">
-          <span>Phản hồi: {seller.responseRate}%</span>
-          <span>•</span>
           <span>Tham gia {seller.joinedYears} năm</span>
         </div>
       </div>

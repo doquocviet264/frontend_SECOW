@@ -1,9 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import type { Order } from "../types";
 import { orderService, type Order as ApiOrder } from "@/services/orderService";
 import { useDebounce } from "@/components/hooks/useDebounce";
+import { cartService } from "@/services/cartService";
+import { useCart } from "@/store/cart";
+import { storeService } from "@/services/storeService";
 
 // Tabs với mapping đến backend status
 const TABS = [
@@ -37,7 +40,7 @@ function getStatusText(status: Order["status"]) {
 }
 
 // Map API order status to component order status
-function mapOrderStatus(status: ApiOrder["status"]): Order["status"] {
+function mapOrderStatus(status: ApiOrder["status"] | "packaged"): Order["status"] {
   switch (status) {
     case "pending":
     case "confirmed":
@@ -71,6 +74,9 @@ export default function OrdersTab({ orders: initialOrders }: Props) {
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [repurchasingOrderId, setRepurchasingOrderId] = useState<string | null>(null);
+  const [loadingStoreId, setLoadingStoreId] = useState<string | null>(null);
+  const { refreshCart } = useCart();
 
   const debouncedSearch = useDebounce(searchInput, 500);
   const activeTabId = searchParams.get("status") || "all";
@@ -238,6 +244,86 @@ export default function OrdersTab({ orders: initialOrders }: Props) {
     return status === "pending" || status === "confirmed";
   };
 
+  // Handle contact seller
+  const handleContactSeller = (order: Order) => {
+    const apiOrder = (order as any).apiOrder;
+    const sellerId = apiOrder?.seller?._id;
+    const sellerName = apiOrder?.seller?.name || "Người bán";
+    
+    if (sellerId) {
+      const q = new URLSearchParams();
+      q.set("with", sellerId);
+      q.set("name", sellerName);
+      // Optionally add order context
+      q.set("orderId", order.id);
+      navigate(`/chat?${q.toString()}`);
+    } else {
+      navigate("/chat");
+    }
+  };
+
+  // Handle repurchase - add all items from order back to cart
+  const handleRepurchase = async (order: Order) => {
+    const apiOrder = (order as any).apiOrder;
+    if (!apiOrder?.items || apiOrder.items.length === 0) {
+      alert("Đơn hàng không có sản phẩm nào");
+      return;
+    }
+
+    setRepurchasingOrderId(order.id);
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // Add each item to cart
+      for (const item of apiOrder.items) {
+        try {
+          // Get productId - could be ObjectId or populated object
+          const productId = item.product?._id 
+            ? String(item.product._id) 
+            : (item.product ? String(item.product) : null);
+
+          if (!productId) {
+            errorCount++;
+            errors.push(`${item.productName || "Sản phẩm"}: Không tìm thấy ID sản phẩm`);
+            continue;
+          }
+
+          await cartService.addItem({
+            productId: productId,
+            quantity: item.quantity || 1,
+          });
+          successCount++;
+        } catch (err: any) {
+          errorCount++;
+          const errorMsg = err?.response?.data?.message || "Lỗi không xác định";
+          errors.push(`${item.productName || "Sản phẩm"}: ${errorMsg}`);
+        }
+      }
+
+      // Refresh cart to update UI
+      await refreshCart();
+
+      // Show result message
+      if (successCount > 0 && errorCount === 0) {
+        alert(`Đã thêm ${successCount} sản phẩm vào giỏ hàng thành công!`);
+        navigate("/cart");
+      } else if (successCount > 0 && errorCount > 0) {
+        alert(`Đã thêm ${successCount} sản phẩm vào giỏ hàng.\n${errorCount} sản phẩm gặp lỗi:\n${errors.join("\n")}`);
+        navigate("/cart");
+      } else {
+        alert(`Không thể thêm sản phẩm vào giỏ hàng:\n${errors.join("\n")}`);
+      }
+    } catch (err: any) {
+      console.error("Error repurchasing:", err);
+      alert("Có lỗi xảy ra khi mua lại. Vui lòng thử lại sau.");
+    } finally {
+      setRepurchasingOrderId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full bg-gray-50 dark:bg-gray-900/50 rounded-xl p-8">
@@ -329,23 +415,54 @@ export default function OrdersTab({ orders: initialOrders }: Props) {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // TODO: Implement chat functionality
+                        const sellerId = (o as any).apiOrder?.seller?._id;
+                        const sellerName = (o as any).apiOrder?.seller?.name || "Người bán";
+                        if (sellerId) {
+                          const q = new URLSearchParams();
+                          q.set("with", sellerId);
+                          q.set("name", sellerName);
+                          q.set("orderId", o.id);
+                          navigate(`/chat?${q.toString()}`);
+                        } else {
+                          navigate("/chat");
+                        }
                       }}
                       className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold hover:bg-emerald-600"
                     >
                       Chat
                     </button>
                     <button 
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
                         const sellerId = (o as any).apiOrder?.seller?._id;
-                        if (sellerId) {
-                          navigate(`/seller/${sellerId}`);
+                        if (!sellerId) return;
+
+                        // Check if already loading
+                        if (loadingStoreId === sellerId) return;
+
+                        try {
+                          setLoadingStoreId(sellerId);
+                          // Get store by sellerId to get storeId
+                          const storeResponse = await storeService.getStoreBySellerId(sellerId);
+                          if (storeResponse.success && storeResponse.data?.store?._id) {
+                            const storeId = storeResponse.data.store._id;
+                            navigate(`/seller-profile/${storeId}`);
+                          } else {
+                            // Fallback: if store not found, navigate with sellerId
+                            navigate(`/seller-profile/${sellerId}`);
+                          }
+                        } catch (err) {
+                          console.error("Error fetching store:", err);
+                          // Fallback: navigate with sellerId if API fails
+                          navigate(`/seller-profile/${sellerId}`);
+                        } finally {
+                          setLoadingStoreId(null);
                         }
                       }}
-                      className="border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+                      disabled={loadingStoreId === (o as any).apiOrder?.seller?._id}
+                      className="border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] px-1.5 py-0.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Xem Shop
+                      {loadingStoreId === (o as any).apiOrder?.seller?._id ? "Đang tải..." : "Xem Shop"}
                     </button>
                   </div>
                   <div className={`flex items-center gap-1 text-xs font-bold uppercase ${getStatusColor(o.status)}`}>
@@ -451,20 +568,21 @@ export default function OrdersTab({ orders: initialOrders }: Props) {
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              // TODO: Implement contact functionality
+                              handleContactSeller(o);
                             }}
-                            className="flex-1 sm:flex-none px-6 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            className="flex-1 sm:flex-none px-6 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                           >
                             Liên hệ
                           </button>
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              // TODO: Implement repurchase functionality
+                              handleRepurchase(o);
                             }}
-                            className="flex-1 sm:flex-none px-6 py-2 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium shadow-sm transition-colors"
+                            disabled={repurchasingOrderId === o.id}
+                            className="flex-1 sm:flex-none px-6 py-2 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Mua lại
+                            {repurchasingOrderId === o.id ? "Đang thêm..." : "Mua lại"}
                           </button>
                         </>
                       )}

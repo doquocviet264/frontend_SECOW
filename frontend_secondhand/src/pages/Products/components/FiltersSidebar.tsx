@@ -1,23 +1,78 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { CategoryModel, FilterState } from '../type'
+import { addressService, type Province, type District } from '@/services/addressService'
 
 interface FiltersSidebarProps {
 	filters: FilterState
 	categories: CategoryModel[] // Truyền danh mục cha con vào đây
 	onFilterChange: (newFilters: Partial<FilterState>) => void
 	onClearFilters: () => void
+	isLoadingCategories?: boolean // Trạng thái loading danh mục
 }
 
 export default function FiltersSidebar({
 	filters,
 	categories,
 	onFilterChange,
-	onClearFilters
+	onClearFilters,
+	isLoadingCategories = false
 }: FiltersSidebarProps) {
 	// --- LOGIC SLIDER KÉO THẢ ---
 	const minLimit = 0
 	const maxLimit = 50000000
 	const [tempPrice, setTempPrice] = useState(filters.priceRange)
+
+	// --- LOGIC TỈNH/THÀNH PHỐ VÀ QUẬN/HUYỆN ---
+	const [provinces, setProvinces] = useState<Province[]>([])
+	const [districts, setDistricts] = useState<District[]>([])
+	const [loadingProvinces, setLoadingProvinces] = useState(false)
+	const [loadingDistricts, setLoadingDistricts] = useState(false)
+
+	// Fetch provinces khi component mount
+	useEffect(() => {
+		const loadProvinces = async () => {
+			try {
+				setLoadingProvinces(true)
+				const data = await addressService.getProvinces()
+				setProvinces(data)
+			} catch (error) {
+				console.error('Error loading provinces:', error)
+				setProvinces([])
+			} finally {
+				setLoadingProvinces(false)
+			}
+		}
+		loadProvinces()
+	}, [])
+
+	// Fetch districts khi chọn province
+	useEffect(() => {
+		if (!filters.selectedCity) {
+			setDistricts([])
+			return
+		}
+
+		const loadDistricts = async () => {
+			try {
+				setLoadingDistricts(true)
+				// Tìm province code từ tên
+				const provinceCode = await addressService.findProvinceCodeByName(filters.selectedCity || '')
+				if (provinceCode) {
+					const data = await addressService.getDistrictsByProvince(provinceCode)
+					setDistricts(data)
+				} else {
+					setDistricts([])
+				}
+			} catch (error) {
+				console.error('Error loading districts:', error)
+				setDistricts([])
+			} finally {
+				setLoadingDistricts(false)
+			}
+		}
+
+		loadDistricts()
+	}, [filters.selectedCity])
 
 	// Cập nhật local state khi props thay đổi (ví dụ khi ấn nút Clear)
 	useEffect(() => {
@@ -116,16 +171,64 @@ export default function FiltersSidebar({
 				<h4 className="font-bold text-gray-900 dark:text-white mb-3">
 					Danh mục
 				</h4>
-				<div className="space-y-1">
-					{categories.map((cat) => renderCategory(cat))}
-				</div>
+				{isLoadingCategories ? (
+					<div className="flex items-center justify-center py-4">
+						<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+					</div>
+				) : categories.length === 0 ? (
+					<p className="text-sm text-gray-500 py-2">Chưa có danh mục nào</p>
+				) : (
+					<div className="space-y-1">
+						{categories.map((cat) => renderCategory(cat))}
+					</div>
+				)}
 			</div>
 
-			{/* KHOẢNG GIÁ (Range Slider) */}
+			{/* KHOẢNG GIÁ (Range Slider + Input) */}
 			<div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
 				<h4 className="font-bold text-gray-900 dark:text-white mb-4">
 					Khoảng giá
 				</h4>
+
+				{/* Input fields để nhập giá */}
+				<div className="grid grid-cols-2 gap-3 mb-4">
+					<div>
+						<label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+							Giá tối thiểu (VNĐ)
+						</label>
+						<input
+							type="number"
+							min={0}
+							max={maxLimit}
+							step={10000}
+							value={tempPrice.min}
+							onChange={(e) => {
+								const val = Math.max(0, Math.min(parseInt(e.target.value) || 0, tempPrice.max - 10000))
+								setTempPrice({ ...tempPrice, min: val })
+							}}
+							className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							placeholder="0"
+						/>
+					</div>
+					<div>
+						<label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+							Giá tối đa (VNĐ)
+						</label>
+						<input
+							type="number"
+							min={tempPrice.min + 10000}
+							max={maxLimit}
+							step={10000}
+							value={tempPrice.max}
+							onChange={(e) => {
+								const val = Math.max(tempPrice.min + 10000, Math.min(parseInt(e.target.value) || maxLimit, maxLimit))
+								setTempPrice({ ...tempPrice, max: val })
+							}}
+							className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							placeholder="50000000"
+						/>
+					</div>
+				</div>
 
 				{/* Slider Visual */}
 				<div className="relative h-12 mb-2">
@@ -163,9 +266,9 @@ export default function FiltersSidebar({
 				</div>
 
 				{/* Hiển thị số tiền */}
-				<div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-					<span>{(tempPrice.min / 1000000).toFixed(1)}tr</span>
-					<span>{(tempPrice.max / 1000000).toFixed(1)}tr</span>
+				<div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
+					<span>{new Intl.NumberFormat('vi-VN').format(tempPrice.min)} VNĐ</span>
+					<span>{new Intl.NumberFormat('vi-VN').format(tempPrice.max)} VNĐ</span>
 				</div>
 
 				<button
@@ -181,27 +284,71 @@ export default function FiltersSidebar({
 				<h4 className="font-bold text-gray-900 dark:text-white mb-3">
 					Khu vực
 				</h4>
-				<div className="space-y-2">
-					{['Hà Nội', 'TP. HCM', 'Đà Nẵng', 'Cần Thơ'].map((loc) => (
-						<label
-							key={loc}
-							className="flex items-center gap-3 cursor-pointer group"
+				
+				{/* Dropdown chọn thành phố */}
+				<div className="mb-3">
+					<label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+						Thành phố
+					</label>
+					{loadingProvinces ? (
+						<div className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-center">
+							<span className="text-gray-500">Đang tải...</span>
+						</div>
+					) : (
+						<select
+							className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							value={filters.selectedCity || ''}
+							onChange={(e) => {
+								const city = e.target.value
+								onFilterChange({ 
+									selectedCity: city,
+									selectedDistrict: '', // Reset district khi đổi city
+									locations: city ? [city] : []
+								})
+							}}
 						>
-							<input
-								type="checkbox"
-								className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								checked={filters.locations.includes(loc)}
-								onChange={() => {
-									const newLocs = filters.locations.includes(loc)
-										? filters.locations.filter((l) => l !== loc)
-										: [...filters.locations, loc]
-									onFilterChange({ locations: newLocs })
-								}}
-							/>
-							<span className="text-sm group-hover:text-blue-600">{loc}</span>
-						</label>
-					))}
+							<option value="">Tất cả thành phố</option>
+							{provinces.map((province) => (
+								<option key={province.code} value={province.name}>
+									{province.name}
+								</option>
+							))}
+						</select>
+					)}
 				</div>
+
+				{/* Dropdown chọn quận/huyện (chỉ hiện khi đã chọn thành phố) */}
+				{filters.selectedCity && (
+					<div className="mb-3">
+						<label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+							Quận/Huyện
+						</label>
+						{loadingDistricts ? (
+							<div className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-center">
+								<span className="text-gray-500">Đang tải...</span>
+							</div>
+						) : (
+							<select
+								className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+								value={filters.selectedDistrict || ''}
+								onChange={(e) => {
+									const district = e.target.value
+									onFilterChange({ 
+										selectedDistrict: district,
+										locations: district ? [`${filters.selectedCity} - ${district}`] : [filters.selectedCity || '']
+									})
+								}}
+							>
+								<option value="">Tất cả quận/huyện</option>
+								{districts.map((district) => (
+									<option key={district.code} value={district.name}>
+										{district.name}
+									</option>
+								))}
+							</select>
+						)}
+					</div>
+				)}
 			</div>
 		</aside>
 	)
