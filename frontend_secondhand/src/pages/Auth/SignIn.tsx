@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import AuthLayout from "./components/AuthLayout";
 import { authService } from "@/services/authService";
 import type { LoginPayload } from "@/types/auth";
 
 export default function SignInPage() {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState<LoginPayload>({
     email: "",
     password: "",
@@ -23,13 +21,11 @@ export default function SignInPage() {
       const response = await authService.login(formData);
 
       if (response.success && response.data) {
-        // Kiểm tra role và điều hướng phù hợp
+        // Kiểm tra role và điều hướng phù hợp, sau đó reload trang
         const userRole = response.data.user?.role;
-        if (userRole === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
+        const redirectPath = userRole === "admin" ? "/admin" : "/";
+        // Sử dụng window.location.href để điều hướng và tự động reload trang
+        window.location.href = redirectPath;
       } else {
         setError(response.message || "Đăng nhập thất bại");
       }
