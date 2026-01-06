@@ -7,6 +7,7 @@ export type UserProfile = {
   joinedYear: number;
   avatarUrl?: string;
   verified?: boolean;
+  dateOfBirth?: string; // Format: YYYY-MM-DD for date input
 };
 
 export type Address = {

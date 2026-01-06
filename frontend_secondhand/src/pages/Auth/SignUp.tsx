@@ -37,8 +37,9 @@ export default function SignUpPage() {
       return;
     }
 
-    if (!/^[0-9]{10,11}$/.test(formData.phone)) {
-      setError("Số điện thoại phải có 10-11 chữ số");
+    // Validate Vietnamese phone number: must start with 0 and have exactly 10 digits
+    if (!/^0[0-9]{9}$/.test(formData.phone)) {
+      setError("Số điện thoại phải có 10 chữ số và bắt đầu bằng số 0");
       return;
     }
 
@@ -48,15 +49,23 @@ export default function SignUpPage() {
     }
 
     // Validate age (must be at least 16 years old)
-    const birthDate = new Date(formData.dateOfBirth);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age;
-    
-    if (actualAge < 16) {
-      setError("Bạn phải đủ 16 tuổi trở lên để đăng ký");
-      return;
+    if (formData.dateOfBirth) {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      
+      // Calculate exact age
+      let exactAge = age;
+      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+        exactAge--;
+      }
+      
+      if (exactAge < 16) {
+        setError("Bạn phải đủ 16 tuổi trở lên để đăng ký");
+        return;
+      }
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -301,23 +310,6 @@ export default function SignUpPage() {
       title="Đăng ký tài khoản"
       subtitle="Bắt đầu hành trình sống xanh của bạn."
     >
-      <button className="w-full h-12 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-3 font-bold text-gray-700 dark:text-white transition-colors text-sm mb-6">
-        <img
-          src="https://www.svgrepo.com/show/475656/google-color.svg"
-          alt="Google"
-          className="w-5 h-5"
-        />
-        Đăng ký bằng Google
-      </button>
-
-      <div className="flex items-center gap-4 mb-6">
-        <div className="h-[1px] bg-gray-200 dark:bg-gray-700 flex-1"></div>
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-          Hoặc đăng ký bằng Email
-        </span>
-        <div className="h-[1px] bg-gray-200 dark:bg-gray-700 flex-1"></div>
-      </div>
-
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -382,16 +374,17 @@ export default function SignUpPage() {
               value={formData.phone}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, ""); // Chỉ cho phép số
-                if (value.length <= 11) {
+                // Chỉ cho phép nhập tối đa 10 số và phải bắt đầu bằng 0
+                if (value.length === 0 || (value[0] === "0" && value.length <= 10)) {
                   setFormData({ ...formData, phone: value });
                 }
               }}
-              maxLength={11}
+              maxLength={10}
               className="w-full h-11 pl-10 pr-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
             />
           </div>
           <p className="text-[10px] text-gray-400 ml-1 mt-1">
-            10-11 chữ số
+            10 chữ số, bắt đầu bằng số 0 (ví dụ: 0901234567)
           </p>
         </div>
 

@@ -10,8 +10,6 @@ const MENU_ITEMS = [
   { path: "/admin/products-approval", icon: "inventory_2", label: "Phê duyệt sản phẩm" },
   { path: "/admin/categories", icon: "category", label: "Danh mục sản phẩm" },
   { path: "/admin/orders", icon: "receipt_long", label: "Đơn hàng" },
-  { path: "/admin/reports", icon: "report", label: "Báo cáo và Khiếu nại" },
-  { path: "/admin/settings", icon: "settings", label: "Cài đặt hệ thống" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

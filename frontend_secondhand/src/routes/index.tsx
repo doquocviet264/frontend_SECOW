@@ -19,12 +19,14 @@ import SellerDashboardPage from "@/pages/SellerDashboard";
 import AdminDashboardPage from "@/pages/AdminDashboard";
 import SellerProductsPage from "@/pages/SellerDashboard/ProductsManagement";
 import SellerOrderManagement from "@/pages/SellerDashboard/OrderManagement";
+import SellerReviewsManagement from "@/pages/SellerDashboard/ReviewsManagement";
 import StoreSettingsPage from "@/pages/SellerDashboard/StoreSettings";
 import CategoryManagementPage from "@/pages/AdminDashboard/CategoryManagement";
 import ProductApprovalPage from "@/pages/AdminDashboard/ProductApproval";
 import StoreApprovalPage from "@/pages/AdminDashboard/StoreApproval";
 import StoreManagementPage from "@/pages/AdminDashboard/StoreManagement";
 import UserManagementPage from "@/pages/AdminDashboard/UserManagement";
+import OrderManagementPage from "@/pages/AdminDashboard/OrderManagement";
 import { authService } from "@/services/authService";
 import type { AuthUser } from "@/types/auth";
 
@@ -157,6 +159,14 @@ export default function AppRouter() {
           }
         />
         <Route
+          path="/seller/reviews"
+          element={
+            <RequireAuth allow={["seller", "admin"]}>
+              <SellerReviewsManagement />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/seller/settings"
           element={
             <RequireAuth allow={["seller", "admin"]}>
@@ -212,6 +222,14 @@ export default function AppRouter() {
           element={
             <RequireAuth allow={["admin"]}>
               <UserManagementPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/orders"
+          element={
+            <RequireAuth allow={["admin"]}>
+              <OrderManagementPage />
             </RequireAuth>
           }
         />

@@ -58,6 +58,19 @@ export default function ProfilePage() {
             ? new Date(createdAt).getFullYear() 
             : new Date().getFullYear();
           
+          // Format dateOfBirth to YYYY-MM-DD for date input
+          let formattedDateOfBirth: string | undefined;
+          if (apiUser.dateOfBirth) {
+            const date = new Date(apiUser.dateOfBirth);
+            if (!isNaN(date.getTime())) {
+              // Format as YYYY-MM-DD using local timezone to avoid date shift
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              formattedDateOfBirth = `${year}-${month}-${day}`;
+            }
+          }
+
           const userProfile: UserProfile = {
             fullName: apiUser.name || "",
             email: apiUser.email || "",
@@ -65,6 +78,7 @@ export default function ProfilePage() {
             joinedYear,
             verified: apiUser.isEmailVerified || false,
             avatarUrl: apiUser.avatar || "",
+            dateOfBirth: formattedDateOfBirth,
           };
           setUser(userProfile);
           setUserRole(apiUser.role || "user");
@@ -234,6 +248,46 @@ export default function ProfilePage() {
     authService.logout();
   };
 
+  // Function to refresh user data
+  const refreshUserData = async () => {
+    try {
+      const userResponse = await authService.getMe();
+      if (userResponse.success && userResponse.data?.user) {
+        const apiUser = userResponse.data.user as any;
+        const createdAt = apiUser.createdAt || apiUser.created_at;
+        const joinedYear = createdAt 
+          ? new Date(createdAt).getFullYear() 
+          : new Date().getFullYear();
+        
+        // Format dateOfBirth to YYYY-MM-DD for date input
+        let formattedDateOfBirth: string | undefined;
+        if (apiUser.dateOfBirth) {
+          const date = new Date(apiUser.dateOfBirth);
+          if (!isNaN(date.getTime())) {
+            // Format as YYYY-MM-DD using local timezone to avoid date shift
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            formattedDateOfBirth = `${year}-${month}-${day}`;
+          }
+        }
+
+        const userProfile: UserProfile = {
+          fullName: apiUser.name || "",
+          email: apiUser.email || "",
+          phone: apiUser.phone || "",
+          joinedYear,
+          verified: apiUser.isEmailVerified || false,
+          avatarUrl: apiUser.avatar || "",
+          dateOfBirth: formattedDateOfBirth,
+        };
+        setUser(userProfile);
+      }
+    } catch (err) {
+      console.error("Error refreshing user data:", err);
+    }
+  };
+
   if (loading) {
     return (
       <PageLayout>
@@ -306,7 +360,7 @@ export default function ProfilePage() {
               />
             ) : null}
 
-            {active === "personal" ? <PersonalInfoTab user={user} /> : null}
+            {active === "personal" ? <PersonalInfoTab user={user} onUserUpdate={refreshUserData} /> : null}
             {active === "address" ? (
               <AddressesTab
                 addresses={addresses}

@@ -11,7 +11,11 @@ export interface Review {
     name: string;
     avatar?: string;
   };
-  seller: string;
+  seller: string | {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
   product: {
     _id: string;
     title: string;
@@ -70,6 +74,11 @@ export const reviewService = {
 
   async getProductReviews(productId: string, params?: { page?: number; limit?: number }): Promise<ApiResponse<{ reviews: Review[]; pagination: any }>> {
     const res = await axios.get(`${REVIEW_PREFIX}/product/${productId}`, { params });
+    return res.data;
+  },
+
+  async getCustomerReviews(customerId: string, params?: { page?: number; limit?: number }): Promise<ApiResponse<{ reviews: Review[]; averageRating: number; totalReviews: number; pagination: any }>> {
+    const res = await axios.get(`${REVIEW_PREFIX}/customer/${customerId}`, { params });
     return res.data;
   },
 };

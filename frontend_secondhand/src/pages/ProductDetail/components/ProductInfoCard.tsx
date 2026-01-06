@@ -167,22 +167,6 @@
                 <span className="material-symbols-outlined text-[20px]">chat</span>
                 Chat với người bán
               </button>
-
-              <button
-                type="button"
-                className="w-12 h-10 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg flex items-center justify-center transition-colors"
-                title="Lưu tin"
-              >
-                <span className="material-symbols-outlined text-[20px]">favorite</span>
-              </button>
-
-              <button
-                type="button"
-                className="w-12 h-10 border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 rounded-lg flex items-center justify-center transition-colors"
-                title="Báo cáo"
-              >
-                <span className="material-symbols-outlined text-[20px]">flag</span>
-              </button>
             </div>
           </div>
 
