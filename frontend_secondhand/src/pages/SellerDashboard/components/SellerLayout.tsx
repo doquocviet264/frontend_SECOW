@@ -4,6 +4,7 @@ import { storeService } from "@/services/storeService";
 import type { Store } from "@/services/storeService";
 import { messageService } from "@/services/messageService";
 import { getSocket } from "@/config/socket";
+import { authService } from "@/services/authService";
 
 const MENU_ITEMS = [
   { path: "/seller/dashboard", icon: "dashboard", label: "Tổng quan" },
@@ -140,7 +141,10 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
               <span className="material-symbols-outlined">home</span>
               Quay về trang chủ
            </Link>
-           <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+           <button 
+             onClick={() => authService.logout()}
+             className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+           >
               <span className="material-symbols-outlined">logout</span>
               Đăng xuất
            </button>
