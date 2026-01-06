@@ -171,31 +171,36 @@ export default function Header({ onSearchChange, searchValue = "" }: HeaderProps
       return;
     }
 
-    if (user?.role === "seller") {
-      // Kiểm tra trạng thái store trước khi cho phép đăng sản phẩm
-      setIsCheckingStore(true);
-      try {
-        const storeResponse = await storeService.getMyStore();
-        if (storeResponse.success && storeResponse.data?.store) {
-          const store = storeResponse.data.store;
-          if (!store.isApproved) {
-            // Store đang chờ duyệt
-            setShowStorePendingModal(true);
-            setIsCheckingStore(false);
-            return;
-          }
+    // Kiểm tra xem user đã đăng ký thành người bán chưa (có store chưa)
+    setIsCheckingStore(true);
+    try {
+      const storeResponse = await storeService.getMyStore();
+      if (storeResponse.success && storeResponse.data?.store) {
+        // User đã đăng ký store
+        const store = storeResponse.data.store;
+        if (!store.isApproved) {
+          // Store đang chờ duyệt
+          setShowStorePendingModal(true);
+          setIsCheckingStore(false);
+          return;
         }
-        // Store đã được duyệt hoặc không có store
+        // Store đã được duyệt -> hiển thị trang quản lý sản phẩm
         navigate("/seller/products");
-      } catch (error) {
-        console.error("Error checking store status:", error);
-        // Nếu có lỗi, vẫn cho phép vào trang (có thể là chưa có store)
-        navigate("/seller/products");
-      } finally {
-        setIsCheckingStore(false);
+      } else {
+        // Chưa có store -> điều hướng đến trang đăng ký thành người bán
+        navigate("/become-seller");
       }
-    } else {
-      navigate("/become-seller");
+    } catch (error: any) {
+      console.error("Error checking store status:", error);
+      // Nếu lỗi 404 hoặc không có store -> điều hướng đến trang đăng ký
+      if (error?.response?.status === 404) {
+        navigate("/become-seller");
+      } else {
+        // Nếu có lỗi khác, vẫn cho phép vào trang (có thể là lỗi mạng)
+        navigate("/seller/products");
+      }
+    } finally {
+      setIsCheckingStore(false);
     }
   };
 

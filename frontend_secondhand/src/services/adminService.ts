@@ -214,5 +214,18 @@ export const adminService = {
     const res = await axios.put(`${ADMIN_PREFIX}/products/${productId}/status`, { status, violationReason });
     return res.data;
   },
+
+  // Lấy danh sách tất cả đơn hàng (Admin)
+  async getAllOrders(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    paymentStatus?: string;
+    customerId?: string;
+    sellerId?: string;
+  }): Promise<ApiResponse<{ orders: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>> {
+    const res = await axios.get(`${ADMIN_PREFIX}/orders`, { params });
+    return res.data;
+  },
 };
 

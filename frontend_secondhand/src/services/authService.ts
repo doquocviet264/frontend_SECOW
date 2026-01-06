@@ -71,6 +71,14 @@ export const authService = {
     return res.data;
   },
 
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse> {
+    const res = await axios.put(`${AUTH_PREFIX}/change-password`, data);
+    return res.data;
+  },
+
   async refreshToken(): Promise<string | null> {
     const refreshToken = localStorage.getItem("refreshToken");
     if (!refreshToken) {

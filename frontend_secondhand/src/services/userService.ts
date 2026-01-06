@@ -71,6 +71,7 @@ export const userService = {
     phone?: string;
     address?: AddressData;
     avatar?: string;
+    dateOfBirth?: string;
   }): Promise<ApiResponse> {
     const res = await axios.put(`${USER_PREFIX}/profile`, data);
     return res.data;

@@ -9,6 +9,7 @@ const MENU_ITEMS = [
   { path: "/seller/dashboard", icon: "dashboard", label: "Tổng quan" },
   { path: "/seller/products", icon: "inventory_2", label: "Sản phẩm" },
   { path: "/seller/orders", icon: "shopping_bag", label: "Đơn hàng" },
+  { path: "/seller/reviews", icon: "rate_review", label: "Đánh giá" },
   { path: "/chat", icon: "forum", label: "Tin nhắn", isChat: true },
   { path: "/seller/settings", icon: "settings", label: "Thiết lập Shop" },
 ];
